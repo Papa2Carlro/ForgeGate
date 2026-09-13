@@ -52,9 +52,11 @@ public class ChatCompletionsIntegrationTests
 
         // When
         var canonicalRequest = MapToCanonical(openAIRequest);
-        await Assert.ThrowsAsync<ProviderRequestFailedException>(async () => 
-            await service.ExecuteAsync(canonicalRequest, CancellationToken.None)
-        );
+        var outcome = await service.ExecuteAsync(canonicalRequest, CancellationToken.None);
+
+        // Then
+        Assert.False(outcome.IsSuccess);
+        Assert.Equal(ProviderFailureKind.RequestFailed, outcome.FailureKind);
     }
 
     private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request)

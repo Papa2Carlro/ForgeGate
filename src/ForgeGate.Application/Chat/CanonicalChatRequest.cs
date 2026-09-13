@@ -1,3 +1,5 @@
+using ForgeGate.Domain.Providers;
+
 namespace ForgeGate.Application.Chat;
 
 /// <summary>
@@ -5,6 +7,6 @@ namespace ForgeGate.Application.Chat;
 /// </summary>
 public sealed record CanonicalChatRequest
 {
-    public required string Model { get; init; }
+    public required ModelRoute Route { get; init; }
     public required IReadOnlyList<CanonicalChatMessage> Messages { get; init; }
 }

@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Domain.Providers;
 using Microsoft.Extensions.Configuration;
 
 namespace ForgeGate.Infrastructure.Providers.OpenAICompatible;
@@ -23,15 +24,17 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
     /// <summary>
     /// Executes a chat completion request against the OpenAI-compatible provider.
     /// </summary>
+    /// <param name="route">Explicit model route to execute against.</param>
     /// <param name="request">The canonical chat request.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>Application-owned normalized outcome.</returns>
     public async Task<ProviderExecutionOutcome> ExecuteAsync(
+        ModelRoute route,
         CanonicalChatRequest request,
         CancellationToken cancellationToken)
     {
         // Map canonical request to provider-specific DTO
-        var openaiRequest = MapToOpenAIRequest(request);
+        var openaiRequest = MapToOpenAIRequest(route, request);
 
         // Serialize and send HTTP request
         var jsonContent = new StringContent(
@@ -95,11 +98,11 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         }
     }
 
-    private static OpenAIChatCompletionRequest MapToOpenAIRequest(CanonicalChatRequest request)
+    private static OpenAIChatCompletionRequest MapToOpenAIRequest(ModelRoute route, CanonicalChatRequest request)
     {
         return new OpenAIChatCompletionRequest
         {
-            Model = request.Model,
+            Model = route.ProviderNativeModelId,
             Messages = request.Messages.Select(m => new OpenAIChatMessage
             {
                 Role = m.Role,

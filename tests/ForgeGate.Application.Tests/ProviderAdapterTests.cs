@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Tests;
 
@@ -8,9 +9,14 @@ public class ProviderAdapterTests
     public async Task ExecuteAsync_ValidRequest_ReturnsCanonicalResponse()
     {
         // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
         var request = new CanonicalChatRequest
         {
-            Model = "gpt-4",
+            Route = route,
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -19,12 +25,12 @@ public class ProviderAdapterTests
 
         // When
         var provider = new FakeOpenAIChatCompletionProvider();
-        var outcome = await provider.ExecuteAsync(request, CancellationToken.None);
+        var outcome = await provider.ExecuteAsync(route, request, CancellationToken.None);
 
         // Then
         Assert.True(outcome.IsSuccess);
         var response = outcome.Response!;
-        Assert.Equal("gpt-4", response.Model);
+        Assert.Equal(route, response.Route);
         Assert.Equal("Mock response from provider", response.Content);
     }
 
@@ -32,9 +38,14 @@ public class ProviderAdapterTests
     public async Task ExecuteAsync_ProviderFailure_ReturnsFailureOutcome()
     {
         // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
         var request = new CanonicalChatRequest
         {
-            Model = "gpt-4",
+            Route = route,
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -44,7 +55,7 @@ public class ProviderAdapterTests
         var provider = new FailingChatCompletionProvider();
 
         // When
-        var outcome = await provider.ExecuteAsync(request, CancellationToken.None);
+        var outcome = await provider.ExecuteAsync(route, request, CancellationToken.None);
 
         // Then
         Assert.False(outcome.IsSuccess);
@@ -53,11 +64,11 @@ public class ProviderAdapterTests
 
     private sealed class FakeOpenAIChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(ProviderExecutionOutcome.Success(new CanonicalChatResponse
             {
-                Model = request.Model,
+                Route = route,
                 Content = "Mock response from provider"
             }));
         }
@@ -65,7 +76,7 @@ public class ProviderAdapterTests
 
     private sealed class FailingChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(ProviderExecutionOutcome.RequestFailed("Provider failed", "Details"));
         }

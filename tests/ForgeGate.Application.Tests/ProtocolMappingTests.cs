@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Tests;
 
@@ -8,6 +9,11 @@ public class ProtocolMappingTests
     public void OpenAIRequestToCanonical_MapsAllFields()
     {
         // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
         var openAIRequest = new OpenAIChatCompletionRequestDto
         {
             Model = "gpt-4",
@@ -19,10 +25,10 @@ public class ProtocolMappingTests
         };
 
         // When
-        var canonical = MapToCanonical(openAIRequest);
+        var canonical = MapToCanonical(openAIRequest, route);
 
         // Then
-        Assert.Equal("gpt-4", canonical.Model);
+        Assert.Equal(route, canonical.Route);
         Assert.Equal(2, canonical.Messages.Count);
         Assert.Equal("system", canonical.Messages[0].Role);
         Assert.Equal("You are helpful", canonical.Messages[0].Content);
@@ -34,9 +40,14 @@ public class ProtocolMappingTests
     public void CanonicalToOpenAIResponse_MapsAllFields()
     {
         // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
         var canonical = new CanonicalChatResponse
         {
-            Model = "gpt-4",
+            Route = route,
             Content = "Hi there!"
         };
 
@@ -51,11 +62,11 @@ public class ProtocolMappingTests
         Assert.Equal("stop", openAIResponse.Choices[0].FinishReason);
     }
 
-    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request)
+    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request, ModelRoute route)
     {
         return new CanonicalChatRequest
         {
-            Model = request.Model,
+            Route = route,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -68,7 +79,7 @@ public class ProtocolMappingTests
     {
         return new OpenAIChatCompletionResponseDto
         {
-            Model = canonicalResponse.Model,
+            Model = canonicalResponse.Route.LogicalModelId.Value,
             Choices = new List<OpenAIChoiceDto>
             {
                 new()

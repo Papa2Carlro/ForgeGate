@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Tests;
 
@@ -8,9 +9,15 @@ public class ChatExecutionServiceTests
     public async Task ExecuteAsync_ValidRequest_DelegatesToProvider()
     {
         // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
+
         var request = new CanonicalChatRequest
         {
-            Model = "gpt-4",
+            Route = route,
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -19,7 +26,7 @@ public class ChatExecutionServiceTests
 
         var expectedResponse = new CanonicalChatResponse
         {
-            Model = "gpt-4",
+            Route = route,
             Content = "Hi there"
         };
 
@@ -27,15 +34,14 @@ public class ChatExecutionServiceTests
         var service = new ChatExecutionService(mockProvider);
 
         // When
-        var outcome = await service.ExecuteAsync(request, CancellationToken.None);
+        var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
 
         // Then
         Assert.True(outcome.IsSuccess);
         var result = outcome.Response!;
-        Assert.Equal(expectedResponse.Model, result.Model);
         Assert.Equal(expectedResponse.Content, result.Content);
         Assert.Single(mockProvider.CapturedRequests);
-        Assert.Equal(request.Model, mockProvider.CapturedRequests[0].Model);
+        Assert.Same(route, mockProvider.CapturedRequests[0].Route);
     }
 
     [Fact]
@@ -44,18 +50,23 @@ public class ChatExecutionServiceTests
         // Given
         var mockProvider = new FakeChatCompletionProvider();
         var service = new ChatExecutionService(mockProvider);
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
 
         // When & Then
-        await Assert.ThrowsAsync<ArgumentNullException>(() => service.ExecuteAsync(null!, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await service.ExecuteAsync(null!, route, CancellationToken.None));
     }
 
     [Fact]
-    public async Task ExecuteAsync_EmptyModel_ThrowsArgumentException()
+    public async Task ExecuteAsync_NullRoute_ThrowsArgumentException()
     {
         // Given
         var request = new CanonicalChatRequest
         {
-            Model = "",
+            Route = ModelRoute.FromIds(ProviderId.From("openai"), LogicalModelId.From("gpt-4"), ModelRouteId.From("openai:gpt-4")),
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -66,7 +77,7 @@ public class ChatExecutionServiceTests
         var service = new ChatExecutionService(mockProvider);
 
         // When & Then
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ExecuteAsync(request, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await service.ExecuteAsync(request, null!, CancellationToken.None));
     }
 
     private sealed class FakeChatCompletionProvider : IChatCompletionProvider
@@ -76,10 +87,15 @@ public class ChatExecutionServiceTests
 
         public FakeChatCompletionProvider(CanonicalChatResponse? response = null)
         {
-            _response = response ?? new CanonicalChatResponse { Model = "test", Content = "test" };
+            var route = ModelRoute.FromIds(
+                ProviderId.From("openai"),
+                LogicalModelId.From("gpt-4"),
+                ModelRouteId.From("openai:gpt-4")
+            );
+            _response = response ?? new CanonicalChatResponse { Route = route, Content = "test" };
         }
 
-        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
         {
             CapturedRequests.Add(request);
             return Task.FromResult(ProviderExecutionOutcome.Success(_response));

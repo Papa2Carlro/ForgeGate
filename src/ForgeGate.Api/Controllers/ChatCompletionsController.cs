@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Domain.Providers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ForgeGate.Api.Controllers;
@@ -95,16 +96,19 @@ public sealed class ChatCompletionsController : ControllerBase
             }
 
             // Map API request to canonical model
-            var canonicalRequest = MapToCanonical(request);
+            var route = ModelRoute.FromIds(
+                ProviderId.From("openai"),
+                LogicalModelId.From(request.Model ?? ""),
+                ModelRouteId.From($"openai:{request.Model ?? ""}")
+            );
+            var canonicalRequest = MapToCanonical(request, route);
 
             // Execute chat completion
-            var outcome = await _chatExecutionService.ExecuteAsync(canonicalRequest, cancellationToken);
+            var outcome = await _chatExecutionService.ExecuteAsync(canonicalRequest, route, cancellationToken);
 
             // Map outcome to API response
             if (!outcome.IsSuccess)
             {
-                // Provider failures are already normalized as exceptions by ChatExecutionService
-                // But handle direct outcome failures just in case
                 return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
                 {
                     Error = new OpenAIError
@@ -132,32 +136,6 @@ public sealed class ChatCompletionsController : ControllerBase
                     Type = "invalid_request_error",
                     Param = null,
                     Code = null
-                }
-            });
-        }
-        catch (ProviderRequestFailedException)
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
-            {
-                Error = new OpenAIError
-                {
-                    Message = "Provider request failed",
-                    Type = "api_error",
-                    Param = null,
-                    Code = "provider_request_failed"
-                }
-            });
-        }
-        catch (ProviderResponseUnusableException)
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
-            {
-                Error = new OpenAIError
-                {
-                    Message = "Provider response unusable",
-                    Type = "api_error",
-                    Param = null,
-                    Code = "provider_response_unusable"
                 }
             });
         }
@@ -190,11 +168,11 @@ public sealed class ChatCompletionsController : ControllerBase
         }
     }
 
-    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequest request)
+    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequest request, ModelRoute route)
     {
         return new CanonicalChatRequest
         {
-            Model = request.Model,
+            Route = route,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -210,7 +188,7 @@ public sealed class ChatCompletionsController : ControllerBase
             Id = Guid.NewGuid().ToString("N"),
             Object = "chat.completion",
             Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            Model = canonicalResponse.Model,
+            Model = canonicalResponse.Route.LogicalModelId.Value,
             Choices = new List<OpenAIChatCompletionChoice>
             {
                 new OpenAIChatCompletionChoice
