@@ -1,0 +1,3 @@
+# Implementation Agent Checklist
+
+Before completing any implementation slice, agent verifies: (1) feature/module ownership; (2) dependency direction preserved; (3) infrastructure details contained; (4) state ownership explicit; (5) concurrency safety required; (6) validation at correct boundary; (7) mappings explicit where semantics change; (8) expected outcomes typed; (9) cancellation propagated; (10) timeouts explicitly owned; (11) new package genuinely justified; (12) feature flag needed; (13) focused test evidence; (14) direct build/test commands for certification; (15) no accidental God Service or duplicate abstraction.
