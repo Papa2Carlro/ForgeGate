@@ -109,14 +109,19 @@ public sealed class ChatCompletionsController : ControllerBase
             // Map outcome to API response
             if (!outcome.IsSuccess)
             {
-                return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
+                var failure = outcome.FailureValue!;
+                int statusCode = MapFailureToStatusCode(failure);
+                string errorType = MapFailureToErrorType(failure.Category);
+                string errorCode = MapFailureToErrorCode(failure.Category);
+
+                return StatusCode(statusCode, new OpenAIErrorResponse
                 {
                     Error = new OpenAIError
                     {
-                        Message = outcome.ErrorMessage ?? "Provider error",
-                        Type = "api_error",
+                        Message = failure.SanitizedUpstreamMessage ?? "Provider error",
+                        Type = errorType,
                         Param = null,
-                        Code = outcome.FailureKind == ProviderFailureKind.RequestFailed ? "provider_request_failed" : "provider_response_unusable"
+                        Code = errorCode
                     }
                 });
             }
@@ -172,6 +177,7 @@ public sealed class ChatCompletionsController : ControllerBase
     {
         return new CanonicalChatRequest
         {
+            RequestedModel = request.Model ?? string.Empty,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -204,11 +210,77 @@ public sealed class ChatCompletionsController : ControllerBase
             Usage = null
         };
     }
+
+    private static int MapFailureToStatusCode(ProviderFailure failure)
+    {
+        switch (failure.Category)
+        {
+            case ProviderFailureCategory.AuthenticationFailed:
+                return StatusCodes.Status401Unauthorized;
+            case ProviderFailureCategory.AuthorizationFailed:
+                return StatusCodes.Status403Forbidden;
+            case ProviderFailureCategory.RateLimited:
+                return StatusCodes.Status429TooManyRequests;
+            case ProviderFailureCategory.QuotaExhausted:
+                return StatusCodes.Status429TooManyRequests;
+            case ProviderFailureCategory.ContextExceeded:
+                return StatusCodes.Status400BadRequest;
+            case ProviderFailureCategory.InvalidModel:
+                return StatusCodes.Status400BadRequest;
+            case ProviderFailureCategory.InvalidRequest:
+                return StatusCodes.Status400BadRequest;
+            case ProviderFailureCategory.Timeout:
+                return StatusCodes.Status504GatewayTimeout;
+            case ProviderFailureCategory.ProviderUnavailable:
+                return StatusCodes.Status502BadGateway;
+            case ProviderFailureCategory.NetworkFailure:
+                return StatusCodes.Status502BadGateway;
+            case ProviderFailureCategory.MalformedResponse:
+                return StatusCodes.Status502BadGateway;
+            default:
+                return StatusCodes.Status502BadGateway;
+        }
+    }
+
+    private static string MapFailureToErrorType(ProviderFailureCategory category)
+    {
+        return category switch
+        {
+            ProviderFailureCategory.AuthenticationFailed => "authentication_error",
+            ProviderFailureCategory.AuthorizationFailed => "authorization_error",
+            ProviderFailureCategory.RateLimited => "rate_limit_error",
+            ProviderFailureCategory.QuotaExhausted => "rate_limit_error",
+            ProviderFailureCategory.ContextExceeded => "invalid_request_error",
+            ProviderFailureCategory.InvalidModel => "invalid_request_error",
+            ProviderFailureCategory.InvalidRequest => "invalid_request_error",
+            ProviderFailureCategory.Timeout => "api_error",
+            ProviderFailureCategory.ProviderUnavailable => "api_error",
+            ProviderFailureCategory.NetworkFailure => "api_error",
+            ProviderFailureCategory.MalformedResponse => "api_error",
+            _ => "api_error"
+        };
+    }
+
+    private static string MapFailureToErrorCode(ProviderFailureCategory category)
+    {
+        return category switch
+        {
+            ProviderFailureCategory.AuthenticationFailed => "authentication_failed",
+            ProviderFailureCategory.AuthorizationFailed => "authorization_failed",
+            ProviderFailureCategory.RateLimited => "rate_limited",
+            ProviderFailureCategory.QuotaExhausted => "quota_exhausted",
+            ProviderFailureCategory.ContextExceeded => "context_length_exceeded",
+            ProviderFailureCategory.InvalidModel => "invalid_model",
+            ProviderFailureCategory.InvalidRequest => "invalid_request",
+            ProviderFailureCategory.Timeout => "timeout",
+            ProviderFailureCategory.ProviderUnavailable => "provider_unavailable",
+            ProviderFailureCategory.NetworkFailure => "network_failure",
+            ProviderFailureCategory.MalformedResponse => "malformed_response",
+            _ => "unknown_error"
+        };
+    }
 }
 
-/// <summary>
-/// OpenAI-compatible error response DTO.
-/// </summary>
 public sealed class OpenAIErrorResponse
 {
     public required OpenAIError Error { get; init; }

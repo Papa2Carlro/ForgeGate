@@ -17,6 +17,7 @@ public class ChatExecutionServiceTests
 
         var request = new CanonicalChatRequest
         {
+            RequestedModel = "gpt-4",
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -63,6 +64,7 @@ public class ChatExecutionServiceTests
         // Given
         var request = new CanonicalChatRequest
         {
+            RequestedModel = "gpt-4",
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -90,6 +92,70 @@ public class ChatExecutionServiceTests
         {
             CapturedRequests.Add(request);
             return Task.FromResult(ProviderExecutionOutcome.Success(_response));
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ProviderFailure_ReturnsSameFailureWithoutReclassification()
+    {
+        // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "gpt-4",
+            Messages = new List<CanonicalChatMessage>
+            {
+                new() { Role = "user", Content = "Hello" }
+            }
+        };
+
+        // Create a specific ProviderFailure to test
+        var expectedFailure = new ProviderFailure
+        {
+            Category = ProviderFailureCategory.ContextExceeded,
+            Retryability = ProviderFailureRetryability.RetryAfterDelay,
+            Scope = ProviderFailureScope.ModelRoute,
+            UpstreamStatusCode = 400,
+            UpstreamCode = "context_length_exceeded",
+            SanitizedUpstreamMessage = "Context length exceeded",
+            RetryAfter = TimeSpan.FromSeconds(30)
+        };
+
+        var failingProvider = new FakeProviderThatReturnsSpecificFailure(expectedFailure);
+        var service = new ChatExecutionService(failingProvider);
+
+        // When
+        var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
+
+        // Then
+        Assert.False(outcome.IsSuccess);
+        Assert.NotNull(outcome.FailureValue);
+        Assert.Same(expectedFailure, outcome.FailureValue); // Same instance
+        Assert.Equal(expectedFailure.Category, outcome.FailureValue!.Category);
+        Assert.Equal(expectedFailure.Retryability, outcome.FailureValue!.Retryability);
+        Assert.Equal(expectedFailure.Scope, outcome.FailureValue!.Scope);
+        Assert.Equal(expectedFailure.UpstreamStatusCode, outcome.FailureValue!.UpstreamStatusCode);
+        Assert.Equal(expectedFailure.UpstreamCode, outcome.FailureValue!.UpstreamCode);
+        Assert.Equal(expectedFailure.SanitizedUpstreamMessage, outcome.FailureValue!.SanitizedUpstreamMessage);
+        Assert.Equal(expectedFailure.RetryAfter, outcome.FailureValue!.RetryAfter);
+    }
+
+    private sealed class FakeProviderThatReturnsSpecificFailure : IChatCompletionProvider
+    {
+        private readonly ProviderFailure _failureToReturn;
+
+        public FakeProviderThatReturnsSpecificFailure(ProviderFailure failureToReturn)
+        {
+            _failureToReturn = failureToReturn;
+        }
+
+        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(ProviderExecutionOutcome.Failure(_failureToReturn));
         }
     }
 }

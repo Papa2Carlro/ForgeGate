@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ForgeGate.Application\ForgeGate.Application.csproj" />
     <ProjectReference Include="..\..\src\ForgeGate.Domain\ForgeGate.Domain.csproj" />
+    <ProjectReference Include="..\..\src\ForgeGate.Infrastructure\ForgeGate.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,21 +11,10 @@ public sealed class ProviderExecutionOutcome
     public static ProviderExecutionOutcome Success(CanonicalChatResponse response) =>
         new() { IsSuccess = true, Response = response };
 
-    public static ProviderExecutionOutcome RequestFailed(string message, string? details = null) =>
-        new() { IsSuccess = false, FailureKind = ProviderFailureKind.RequestFailed, ErrorMessage = message, ErrorDetails = details };
-
-    public static ProviderExecutionOutcome ResponseUnusable(string message) =>
-        new() { IsSuccess = false, FailureKind = ProviderFailureKind.ResponseUnusable, ErrorMessage = message };
+    public static ProviderExecutionOutcome Failure(ProviderFailure failure) =>
+        new() { IsSuccess = false, FailureValue = failure };
 
     public bool IsSuccess { get; init; }
     public CanonicalChatResponse? Response { get; init; }
-    public ProviderFailureKind? FailureKind { get; init; }
-    public string? ErrorMessage { get; init; }
-    public string? ErrorDetails { get; init; }
-}
-
-public enum ProviderFailureKind
-{
-    RequestFailed,
-    ResponseUnusable
+    public ProviderFailure? FailureValue { get; init; }
 }

@@ -23,6 +23,7 @@ public class ProtocolMappingTests
         var canonical = MapToCanonical(openAIRequest);
 
         // Then
+        Assert.Equal("gpt-4", canonical.RequestedModel);
         Assert.Equal(2, canonical.Messages.Count);
         Assert.Equal("system", canonical.Messages[0].Role);
         Assert.Equal("You are helpful", canonical.Messages[0].Content);
@@ -59,6 +60,7 @@ public class ProtocolMappingTests
     {
         return new CanonicalChatRequest
         {
+            RequestedModel = request.Model ?? string.Empty,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,

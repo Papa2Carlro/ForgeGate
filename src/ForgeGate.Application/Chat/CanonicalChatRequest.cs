@@ -5,5 +5,6 @@ namespace ForgeGate.Application.Chat;
 /// </summary>
 public sealed record CanonicalChatRequest
 {
+    public required string RequestedModel { get; init; }
     public required IReadOnlyList<CanonicalChatMessage> Messages { get; init; }
 }

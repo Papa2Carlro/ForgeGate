@@ -65,13 +65,14 @@ public class ChatCompletionsIntegrationTests
 
         // Then
         Assert.False(outcome.IsSuccess);
-        Assert.Equal(ProviderFailureKind.RequestFailed, outcome.FailureKind);
+        Assert.Equal(ProviderFailureCategory.InvalidRequest, outcome.FailureValue!.Category);
     }
 
     private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request)
     {
         return new CanonicalChatRequest
         {
+            RequestedModel = request.Model ?? string.Empty,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -116,7 +117,13 @@ public class ChatCompletionsIntegrationTests
     {
         public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(ProviderExecutionOutcome.RequestFailed("Provider failed", "Details"));
+            return Task.FromResult(ProviderExecutionOutcome.Failure(new ProviderFailure
+            {
+                Category = ProviderFailureCategory.InvalidRequest,
+                Retryability = ProviderFailureRetryability.NotRetryable,
+                Scope = ProviderFailureScope.Request,
+                SanitizedUpstreamMessage = "Provider failed"
+            }));
         }
     }
 

@@ -59,10 +59,19 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
             // Handle HTTP errors - normalize to application outcome
             if (!response.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                return ProviderExecutionOutcome.RequestFailed(
-                    $"Provider request failed with status {(int)response.StatusCode}: {response.ReasonPhrase}",
-                    errorContent);
+                OpenAIError? error = null;
+                try
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    var errorResponse = System.Text.Json.JsonSerializer.Deserialize<OpenAIErrorResponse>(
+                        errorContent,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    error = errorResponse?.Error;
+                }
+                catch { /* Ignore deserialization errors */ }
+
+                var failure = OpenAIProviderFailureMapper.Map(response.StatusCode, error, response.Headers);
+                return ProviderExecutionOutcome.Failure(failure);
             }
 
             // Read and deserialize provider response
@@ -76,20 +85,39 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
 
             if (openaiResponse == null)
             {
-                return ProviderExecutionOutcome.ResponseUnusable("Failed to deserialize provider response");
+                var failure = new ProviderFailure
+            {
+                Category = ProviderFailureCategory.MalformedResponse,
+                Retryability = ProviderFailureRetryability.NotRetryable,
+                Scope = ProviderFailureScope.Provider,
+                SanitizedUpstreamMessage = "Failed to deserialize provider response"
+            };
+            return ProviderExecutionOutcome.Failure(failure);
             }
 
             // Map provider response to canonical response
             var canonicalResponse = MapToCanonicalResponse(route, openaiResponse);
             return ProviderExecutionOutcome.Success(canonicalResponse);
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            return ProviderExecutionOutcome.RequestFailed("Provider request failed", ex.Message);
+            var failure = new ProviderFailure
+            {
+                Category = ProviderFailureCategory.NetworkFailure,
+                Retryability = ProviderFailureRetryability.RetryViaAnotherRoute,
+                Scope = ProviderFailureScope.Provider
+            };
+            return ProviderExecutionOutcome.Failure(failure);
         }
         catch (System.Text.Json.JsonException)
         {
-            return ProviderExecutionOutcome.ResponseUnusable("Failed to deserialize provider response");
+            var failure = new ProviderFailure
+            {
+                Category = ProviderFailureCategory.MalformedResponse,
+                Retryability = ProviderFailureRetryability.NotRetryable,
+                Scope = ProviderFailureScope.Provider
+            };
+            return ProviderExecutionOutcome.Failure(failure);
         }
         catch (OperationCanceledException)
         {
