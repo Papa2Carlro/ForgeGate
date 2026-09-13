@@ -1,0 +1,3 @@
+# Architecture Status
+
+DECIDED: ARCHITECTURAL_STYLE (Modular Monolith + Clean/Hexagonal + feature-oriented); CONTRACT_LOCATION (consumer/application side); APPLICATION_ORCHESTRATION (narrow feature-scoped coordinators); DOMAIN_STYLE (thin strict); PERSISTENCE (focused feature-specific ports); GENERIC_REPOSITORY (prohibited); DIRECT_DB_CONTEXT_IN_APPLICATION (prohibited); INTERNAL_COORDINATION (explicit control flow + lightweight notifications); EVENT_BUS_FRAMEWORK (not required); APPLICATION_FAILURE_MODEL (typed expected outcomes + exceptions for unexpected); RESULT_T_EVERYWHERE (not required).

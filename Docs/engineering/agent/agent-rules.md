@@ -1,0 +1,3 @@
+# Implementation Agent Rules
+
+All future coding agents must: inspect existing feature boundaries first; extend existing architecture rather than create parallel competing abstractions; keep contracts on consumer side; keep infrastructure details out of Application/Domain; avoid generic repository; avoid god services; avoid global mutable state; avoid unnecessary singleton lifetimes; keep critical control flow explicit; use notifications only for appropriate secondary reactions; use typed outcomes for expected states; normalize external failures at boundaries; make narrow changes; add focused contract tests. If request conflicts with documented architecture, report conflict and perform only smallest safe architectural correction required by current implementation slice.
