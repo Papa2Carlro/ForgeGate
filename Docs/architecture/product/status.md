@@ -34,4 +34,15 @@ DECIDED (new):
 NOT YET DECIDED (new):
 - exact session fingerprint algorithm; exact workspace detection; exact task-state DTO; exact supervision profile schema; exact config merge semantics; exact progress-scoring mechanism; exact workspace-attribution confidence model.
 
+DECIDED (new):
+- adaptive task classification; explicit metadata takes precedence; LLM analysis is fallback.
+- declared vs effective task profiles are distinct.
+- runtime reassessment can change supervision intensity.
+- adaptive prompt/context injection; stronger for problematic models/behavior.
+- context provenance must remain distinguishable.
+- injected context must remain bounded and token-conscious.
+
+NOT YET DECIDED (new):
+- task metadata syntax; Task Analyzer model; exact classification taxonomy; exact reassessment thresholds; exact message role for injections; exact context-priority/conflict rules; exact token budget for supervision context.
+
 No contradictions found in existing repo (only gateway scaffold present; no Agent Guard runtime; no premature policy schema locked).
