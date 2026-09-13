@@ -17,7 +17,6 @@ public class ChatExecutionServiceTests
 
         var request = new CanonicalChatRequest
         {
-            Route = route,
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -26,7 +25,6 @@ public class ChatExecutionServiceTests
 
         var expectedResponse = new CanonicalChatResponse
         {
-            Route = route,
             Content = "Hi there"
         };
 
@@ -41,7 +39,6 @@ public class ChatExecutionServiceTests
         var result = outcome.Response!;
         Assert.Equal(expectedResponse.Content, result.Content);
         Assert.Single(mockProvider.CapturedRequests);
-        Assert.Same(route, mockProvider.CapturedRequests[0].Route);
     }
 
     [Fact]
@@ -66,7 +63,6 @@ public class ChatExecutionServiceTests
         // Given
         var request = new CanonicalChatRequest
         {
-            Route = ModelRoute.FromIds(ProviderId.From("openai"), LogicalModelId.From("gpt-4"), ModelRouteId.From("openai:gpt-4")),
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -87,12 +83,7 @@ public class ChatExecutionServiceTests
 
         public FakeChatCompletionProvider(CanonicalChatResponse? response = null)
         {
-            var route = ModelRoute.FromIds(
-                ProviderId.From("openai"),
-                LogicalModelId.From("gpt-4"),
-                ModelRouteId.From("openai:gpt-4")
-            );
-            _response = response ?? new CanonicalChatResponse { Route = route, Content = "test" };
+            _response = response ?? new CanonicalChatResponse { Content = "test" };
         }
 
         public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)

@@ -16,7 +16,6 @@ public class ProviderAdapterTests
         );
         var request = new CanonicalChatRequest
         {
-            Route = route,
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -30,7 +29,6 @@ public class ProviderAdapterTests
         // Then
         Assert.True(outcome.IsSuccess);
         var response = outcome.Response!;
-        Assert.Equal(route, response.Route);
         Assert.Equal("Mock response from provider", response.Content);
     }
 
@@ -45,7 +43,6 @@ public class ProviderAdapterTests
         );
         var request = new CanonicalChatRequest
         {
-            Route = route,
             Messages = new List<CanonicalChatMessage>
             {
                 new() { Role = "user", Content = "Hello" }
@@ -68,7 +65,6 @@ public class ProviderAdapterTests
         {
             return Task.FromResult(ProviderExecutionOutcome.Success(new CanonicalChatResponse
             {
-                Route = route,
                 Content = "Mock response from provider"
             }));
         }

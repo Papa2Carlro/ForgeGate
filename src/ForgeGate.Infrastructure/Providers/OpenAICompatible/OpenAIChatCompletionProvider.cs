@@ -80,7 +80,7 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
             }
 
             // Map provider response to canonical response
-            var canonicalResponse = MapToCanonicalResponse(openaiResponse);
+            var canonicalResponse = MapToCanonicalResponse(route, openaiResponse);
             return ProviderExecutionOutcome.Success(canonicalResponse);
         }
         catch (HttpRequestException ex)
@@ -111,7 +111,7 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         };
     }
 
-    private static CanonicalChatResponse MapToCanonicalResponse(OpenAIChatCompletionResponse response)
+    private static CanonicalChatResponse MapToCanonicalResponse(ModelRoute route, OpenAIChatCompletionResponse response)
     {
         // Extract the first choice's message content
         var content = response.Choices.FirstOrDefault()?.Message.Content
@@ -119,7 +119,6 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
 
         return new CanonicalChatResponse
         {
-            Model = response.Model,
             Content = content
         };
     }

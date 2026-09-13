@@ -9,11 +9,6 @@ public class ProtocolMappingTests
     public void OpenAIRequestToCanonical_MapsAllFields()
     {
         // Given
-        var route = ModelRoute.FromIds(
-            ProviderId.From("openai"),
-            LogicalModelId.From("gpt-4"),
-            ModelRouteId.From("openai:gpt-4")
-        );
         var openAIRequest = new OpenAIChatCompletionRequestDto
         {
             Model = "gpt-4",
@@ -25,10 +20,9 @@ public class ProtocolMappingTests
         };
 
         // When
-        var canonical = MapToCanonical(openAIRequest, route);
+        var canonical = MapToCanonical(openAIRequest);
 
         // Then
-        Assert.Equal(route, canonical.Route);
         Assert.Equal(2, canonical.Messages.Count);
         Assert.Equal("system", canonical.Messages[0].Role);
         Assert.Equal("You are helpful", canonical.Messages[0].Content);
@@ -47,12 +41,11 @@ public class ProtocolMappingTests
         );
         var canonical = new CanonicalChatResponse
         {
-            Route = route,
             Content = "Hi there!"
         };
 
         // When
-        var openAIResponse = MapToApiResponse(canonical);
+        var openAIResponse = MapToApiResponse(canonical, route);
 
         // Then
         Assert.Equal("gpt-4", openAIResponse.Model);
@@ -62,11 +55,10 @@ public class ProtocolMappingTests
         Assert.Equal("stop", openAIResponse.Choices[0].FinishReason);
     }
 
-    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request, ModelRoute route)
+    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request)
     {
         return new CanonicalChatRequest
         {
-            Route = route,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -75,11 +67,11 @@ public class ProtocolMappingTests
         };
     }
 
-    private static OpenAIChatCompletionResponseDto MapToApiResponse(CanonicalChatResponse canonicalResponse)
+    private static OpenAIChatCompletionResponseDto MapToApiResponse(CanonicalChatResponse canonicalResponse, ModelRoute route)
     {
         return new OpenAIChatCompletionResponseDto
         {
-            Model = canonicalResponse.Route.LogicalModelId.Value,
+            Model = route.LogicalModelId.Value,
             Choices = new List<OpenAIChoiceDto>
             {
                 new()

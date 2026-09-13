@@ -101,7 +101,7 @@ public sealed class ChatCompletionsController : ControllerBase
                 LogicalModelId.From(request.Model ?? ""),
                 ModelRouteId.From($"openai:{request.Model ?? ""}")
             );
-            var canonicalRequest = MapToCanonical(request, route);
+            var canonicalRequest = MapToCanonical(request);
 
             // Execute chat completion
             var outcome = await _chatExecutionService.ExecuteAsync(canonicalRequest, route, cancellationToken);
@@ -122,7 +122,7 @@ public sealed class ChatCompletionsController : ControllerBase
             }
 
             // Map canonical response to API response
-            var apiResponse = MapToApiResponse(outcome.Response!);
+            var apiResponse = MapToApiResponse(outcome.Response!, route);
 
             return Ok(apiResponse);
         }
@@ -168,11 +168,10 @@ public sealed class ChatCompletionsController : ControllerBase
         }
     }
 
-    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequest request, ModelRoute route)
+    private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequest request)
     {
         return new CanonicalChatRequest
         {
-            Route = route,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -181,14 +180,14 @@ public sealed class ChatCompletionsController : ControllerBase
         };
     }
 
-    private static OpenAIChatCompletionResponse MapToApiResponse(CanonicalChatResponse canonicalResponse)
+    private static OpenAIChatCompletionResponse MapToApiResponse(CanonicalChatResponse canonicalResponse, ModelRoute route)
     {
         return new OpenAIChatCompletionResponse
         {
             Id = Guid.NewGuid().ToString("N"),
             Object = "chat.completion",
             Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            Model = canonicalResponse.Route.LogicalModelId.Value,
+            Model = route.LogicalModelId.Value,
             Choices = new List<OpenAIChatCompletionChoice>
             {
                 new OpenAIChatCompletionChoice

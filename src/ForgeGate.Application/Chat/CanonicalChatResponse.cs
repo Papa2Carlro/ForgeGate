@@ -1,5 +1,3 @@
-using ForgeGate.Domain.Providers;
-
 namespace ForgeGate.Application.Chat;
 
 /// <summary>
@@ -7,6 +5,5 @@ namespace ForgeGate.Application.Chat;
 /// </summary>
 public sealed record CanonicalChatResponse
 {
-    public required ModelRoute Route { get; init; }
     public required string Content { get; init; }
 }

@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.IntegrationTests;
 
@@ -19,13 +20,17 @@ public class ChatCompletionsIntegrationTests
 
         var mockProvider = new FakeChatCompletionProvider();
         var service = new ChatExecutionService(mockProvider);
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4"));
 
         // When - Simulate controller flow
         var canonicalRequest = MapToCanonical(openAIRequest);
-        var outcome = await service.ExecuteAsync(canonicalRequest, CancellationToken.None);
+        var outcome = await service.ExecuteAsync(canonicalRequest, route, CancellationToken.None);
         Assert.True(outcome.IsSuccess);
         var canonicalResponse = outcome.Response!;
-        var apiResponse = MapToApiResponse(canonicalResponse);
+        var apiResponse = MapToApiResponse(canonicalResponse, route);
 
         // Then
         Assert.Equal("gpt-4", apiResponse.Model);
@@ -49,10 +54,14 @@ public class ChatCompletionsIntegrationTests
 
         var failingProvider = new FailingChatCompletionProvider();
         var service = new ChatExecutionService(failingProvider);
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4"));
 
         // When
         var canonicalRequest = MapToCanonical(openAIRequest);
-        var outcome = await service.ExecuteAsync(canonicalRequest, CancellationToken.None);
+        var outcome = await service.ExecuteAsync(canonicalRequest, route, CancellationToken.None);
 
         // Then
         Assert.False(outcome.IsSuccess);
@@ -63,7 +72,6 @@ public class ChatCompletionsIntegrationTests
     {
         return new CanonicalChatRequest
         {
-            Model = request.Model,
             Messages = request.Messages.Select(m => new CanonicalChatMessage
             {
                 Role = m.Role,
@@ -72,11 +80,11 @@ public class ChatCompletionsIntegrationTests
         };
     }
 
-    private static OpenAIChatCompletionResponseDto MapToApiResponse(CanonicalChatResponse canonicalResponse)
+    private static OpenAIChatCompletionResponseDto MapToApiResponse(CanonicalChatResponse canonicalResponse, ModelRoute route)
     {
         return new OpenAIChatCompletionResponseDto
         {
-            Model = canonicalResponse.Model,
+            Model = route.LogicalModelId.Value,
             Choices = new List<OpenAIChoiceDto>
             {
                 new()
@@ -95,11 +103,10 @@ public class ChatCompletionsIntegrationTests
 
     private sealed class FakeChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(ProviderExecutionOutcome.Success(new CanonicalChatResponse
             {
-                Model = request.Model,
                 Content = "Mock response"
             }));
         }
@@ -107,7 +114,7 @@ public class ChatCompletionsIntegrationTests
 
     private sealed class FailingChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(ProviderExecutionOutcome.RequestFailed("Provider failed", "Details"));
         }
