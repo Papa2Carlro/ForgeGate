@@ -1,5 +1,4 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Domain.Chat;
 using Microsoft.Extensions.Configuration;
 
 namespace ForgeGate.Infrastructure.Providers.OpenAICompatible;
@@ -26,14 +25,14 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
     /// </summary>
     /// <param name="request">The canonical chat request.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>The canonical chat response from the provider.</returns>
-    public async Task<CanonicalChatResponse> ExecuteAsync(
+    /// <returns>Application-owned normalized outcome.</returns>
+    public async Task<ProviderExecutionOutcome> ExecuteAsync(
         CanonicalChatRequest request,
         CancellationToken cancellationToken)
     {
         // Map canonical request to provider-specific DTO
         var openaiRequest = MapToOpenAIRequest(request);
-        
+
         // Serialize and send HTTP request
         var jsonContent = new StringContent(
             System.Text.Json.JsonSerializer.Serialize(openaiRequest),
@@ -49,33 +48,51 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         }
 
         // Execute HTTP request
-        var response = await _httpClient.PostAsync(_endpoint, jsonContent, cancellationToken);
-        
-        // Handle HTTP errors
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage? response = null;
+        try
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new ProviderRequestFailedException(
-                $"Provider request failed with status {(int)response.StatusCode}: {response.ReasonPhrase}",
-                errorContent);
+            response = await _httpClient.PostAsync(_endpoint, jsonContent, cancellationToken);
+
+            // Handle HTTP errors - normalize to application outcome
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                return ProviderExecutionOutcome.RequestFailed(
+                    $"Provider request failed with status {(int)response.StatusCode}: {response.ReasonPhrase}",
+                    errorContent);
+            }
+
+            // Read and deserialize provider response
+            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            var openaiResponse = System.Text.Json.JsonSerializer.Deserialize<OpenAIChatCompletionResponse>(
+                responseContent,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            if (openaiResponse == null)
+            {
+                return ProviderExecutionOutcome.ResponseUnusable("Failed to deserialize provider response");
+            }
+
+            // Map provider response to canonical response
+            var canonicalResponse = MapToCanonicalResponse(openaiResponse);
+            return ProviderExecutionOutcome.Success(canonicalResponse);
         }
-
-        // Read and deserialize provider response
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var openaiResponse = System.Text.Json.JsonSerializer.Deserialize<OpenAIChatCompletionResponse>(
-            responseContent, 
-            new System.Text.Json.JsonSerializerOptions 
-            { 
-                PropertyNameCaseInsensitive = true 
-            });
-
-        if (openaiResponse == null)
+        catch (HttpRequestException ex)
         {
-            throw new ProviderResponseUnusableException("Failed to deserialize provider response");
+            return ProviderExecutionOutcome.RequestFailed("Provider request failed", ex.Message);
         }
-
-        // Map provider response to canonical response
-        return MapToCanonicalResponse(openaiResponse);
+        catch (System.Text.Json.JsonException)
+        {
+            return ProviderExecutionOutcome.ResponseUnusable("Failed to deserialize provider response");
+        }
+        catch (OperationCanceledException)
+        {
+            // Re-throw cancellation to preserve semantics
+            throw;
+        }
     }
 
     private static OpenAIChatCompletionRequest MapToOpenAIRequest(CanonicalChatRequest request)
@@ -94,7 +111,7 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
     private static CanonicalChatResponse MapToCanonicalResponse(OpenAIChatCompletionResponse response)
     {
         // Extract the first choice's message content
-        var content = response.Choices.FirstOrDefault()?.Message.Content 
+        var content = response.Choices.FirstOrDefault()?.Message.Content
                      ?? string.Empty;
 
         return new CanonicalChatResponse
@@ -109,30 +126,5 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         // In a real implementation, this would come from secure configuration/secrets
         // For this slice, we'll attempt to read from configuration but allow empty for keyless providers
         return ""; // Placeholder - would normally come from IConfiguration
-    }
-}
-
-/// <summary>
-/// Exception thrown when provider request fails at the HTTP level.
-/// </summary>
-public sealed class ProviderRequestFailedException : Exception
-{
-    public ProviderRequestFailedException(string message, string? providerResponse = null)
-        : base(message)
-    {
-        ProviderResponse = providerResponse;
-    }
-
-    public string? ProviderResponse { get; }
-}
-
-/// <summary>
-/// Exception thrown when provider response is malformed or unusable.
-/// </summary>
-public sealed class ProviderResponseUnusableException : Exception
-{
-    public ProviderResponseUnusableException(string message)
-        : base(message)
-    {
     }
 }

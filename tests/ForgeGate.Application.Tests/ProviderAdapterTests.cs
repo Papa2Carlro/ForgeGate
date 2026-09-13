@@ -1,5 +1,4 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Domain.Chat;
 
 namespace ForgeGate.Application.Tests;
 
@@ -20,15 +19,17 @@ public class ProviderAdapterTests
 
         // When
         var provider = new FakeOpenAIChatCompletionProvider();
-        var response = await provider.ExecuteAsync(request, CancellationToken.None);
+        var outcome = await provider.ExecuteAsync(request, CancellationToken.None);
 
         // Then
+        Assert.True(outcome.IsSuccess);
+        var response = outcome.Response!;
         Assert.Equal("gpt-4", response.Model);
         Assert.Equal("Mock response from provider", response.Content);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ProviderThrows_RequestFailedException()
+    public async Task ExecuteAsync_ProviderFailure_ReturnsFailureOutcome()
     {
         // Given
         var request = new CanonicalChatRequest
@@ -42,33 +43,31 @@ public class ProviderAdapterTests
 
         var provider = new FailingChatCompletionProvider();
 
-        // When & Then
-        await Assert.ThrowsAsync<ProviderRequestFailedException>(
-            () => provider.ExecuteAsync(request, CancellationToken.None));
+        // When
+        var outcome = await provider.ExecuteAsync(request, CancellationToken.None);
+
+        // Then
+        Assert.False(outcome.IsSuccess);
+        Assert.Equal(ProviderFailureKind.RequestFailed, outcome.FailureKind);
     }
 
     private sealed class FakeOpenAIChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<CanonicalChatResponse> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(new CanonicalChatResponse
+            return Task.FromResult(ProviderExecutionOutcome.Success(new CanonicalChatResponse
             {
                 Model = request.Model,
                 Content = "Mock response from provider"
-            });
+            }));
         }
     }
 
     private sealed class FailingChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<CanonicalChatResponse> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
         {
-            throw new ProviderRequestFailedException("Provider request failed");
+            return Task.FromResult(ProviderExecutionOutcome.RequestFailed("Provider failed", "Details"));
         }
-    }
-
-    private sealed class ProviderRequestFailedException : Exception
-    {
-        public ProviderRequestFailedException(string message) : base(message) { }
     }
 }

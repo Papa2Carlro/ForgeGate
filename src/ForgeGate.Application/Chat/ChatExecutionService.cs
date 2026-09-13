@@ -1,5 +1,3 @@
-using ForgeGate.Domain.Chat;
-
 namespace ForgeGate.Application.Chat;
 
 /// <summary>
@@ -20,8 +18,8 @@ public sealed class ChatExecutionService
     /// </summary>
     /// <param name="request">The canonical chat request.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>The canonical chat response from the provider.</returns>
-    public Task<CanonicalChatResponse> ExecuteAsync(
+    /// <returns>Application-owned normalized outcome.</returns>
+    public async Task<ProviderExecutionOutcome> ExecuteAsync(
         CanonicalChatRequest request,
         CancellationToken cancellationToken)
     {
@@ -36,6 +34,42 @@ public sealed class ChatExecutionService
             throw new ArgumentException("Messages cannot be null or empty", nameof(request.Messages));
 
         // Delegate to provider - Application does not contain provider-specific logic
-        return _provider.ExecuteAsync(request, cancellationToken);
+        var outcome = await _provider.ExecuteAsync(request, cancellationToken);
+        
+        if (!outcome.IsSuccess)
+        {
+            // Re-throw normalized failures as typed exceptions for API mapping
+            // This keeps API boundary clean while preserving failure semantics
+            switch (outcome.FailureKind)
+            {
+                case ProviderFailureKind.RequestFailed:
+                    throw new ProviderRequestFailedException(outcome.ErrorMessage ?? "Provider request failed", outcome.ErrorDetails);
+                case ProviderFailureKind.ResponseUnusable:
+                    throw new ProviderResponseUnusableException(outcome.ErrorMessage ?? "Provider response unusable");
+                default:
+                    throw new InvalidOperationException("Unknown provider failure kind");
+            }
+        }
+
+        return outcome;
+    }
+}
+
+public sealed class ProviderRequestFailedException : Exception
+{
+    public ProviderRequestFailedException(string message, string? details = null)
+        : base(message)
+    {
+        Details = details;
+    }
+
+    public string? Details { get; }
+}
+
+public sealed class ProviderResponseUnusableException : Exception
+{
+    public ProviderResponseUnusableException(string message)
+        : base(message)
+    {
     }
 }

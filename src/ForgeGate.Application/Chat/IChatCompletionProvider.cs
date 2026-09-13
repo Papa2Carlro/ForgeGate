@@ -1,5 +1,3 @@
-using ForgeGate.Domain.Chat;
-
 namespace ForgeGate.Application.Chat;
 
 /// <summary>
@@ -10,11 +8,12 @@ public interface IChatCompletionProvider
 {
     /// <summary>
     /// Executes a chat completion request against the provider.
+    /// Returns normalized outcome to avoid leaking infrastructure exceptions.
     /// </summary>
     /// <param name="request">The canonical chat request.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>The canonical chat response from the provider.</returns>
-    Task<CanonicalChatResponse> ExecuteAsync(
+    /// <returns>Application-owned normalized outcome.</returns>
+    Task<ProviderExecutionOutcome> ExecuteAsync(
         CanonicalChatRequest request,
         CancellationToken cancellationToken);
 }

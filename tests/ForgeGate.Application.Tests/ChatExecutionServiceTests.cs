@@ -1,5 +1,4 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Domain.Chat;
 
 namespace ForgeGate.Application.Tests;
 
@@ -28,9 +27,11 @@ public class ChatExecutionServiceTests
         var service = new ChatExecutionService(mockProvider);
 
         // When
-        var result = await service.ExecuteAsync(request, CancellationToken.None);
+        var outcome = await service.ExecuteAsync(request, CancellationToken.None);
 
         // Then
+        Assert.True(outcome.IsSuccess);
+        var result = outcome.Response!;
         Assert.Equal(expectedResponse.Model, result.Model);
         Assert.Equal(expectedResponse.Content, result.Content);
         Assert.Single(mockProvider.CapturedRequests);
@@ -78,10 +79,10 @@ public class ChatExecutionServiceTests
             _response = response ?? new CanonicalChatResponse { Model = "test", Content = "test" };
         }
 
-        public Task<CanonicalChatResponse> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
         {
             CapturedRequests.Add(request);
-            return Task.FromResult(_response);
+            return Task.FromResult(ProviderExecutionOutcome.Success(_response));
         }
     }
 }

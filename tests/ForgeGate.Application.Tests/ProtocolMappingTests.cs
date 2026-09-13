@@ -1,4 +1,4 @@
-using ForgeGate.Domain.Chat;
+using ForgeGate.Application.Chat;
 
 namespace ForgeGate.Application.Tests;
 

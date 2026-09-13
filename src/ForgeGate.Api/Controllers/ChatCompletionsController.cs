@@ -1,5 +1,4 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Domain.Chat;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ForgeGate.Api.Controllers;
@@ -99,10 +98,27 @@ public sealed class ChatCompletionsController : ControllerBase
             var canonicalRequest = MapToCanonical(request);
 
             // Execute chat completion
-            var canonicalResponse = await _chatExecutionService.ExecuteAsync(canonicalRequest, cancellationToken);
+            var outcome = await _chatExecutionService.ExecuteAsync(canonicalRequest, cancellationToken);
+
+            // Map outcome to API response
+            if (!outcome.IsSuccess)
+            {
+                // Provider failures are already normalized as exceptions by ChatExecutionService
+                // But handle direct outcome failures just in case
+                return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
+                {
+                    Error = new OpenAIError
+                    {
+                        Message = outcome.ErrorMessage ?? "Provider error",
+                        Type = "api_error",
+                        Param = null,
+                        Code = outcome.FailureKind == ProviderFailureKind.RequestFailed ? "provider_request_failed" : "provider_response_unusable"
+                    }
+                });
+            }
 
             // Map canonical response to API response
-            var apiResponse = MapToApiResponse(canonicalResponse);
+            var apiResponse = MapToApiResponse(outcome.Response!);
 
             return Ok(apiResponse);
         }
@@ -119,7 +135,7 @@ public sealed class ChatCompletionsController : ControllerBase
                 }
             });
         }
-        catch (ForgeGate.Infrastructure.Providers.OpenAICompatible.ProviderRequestFailedException)
+        catch (ProviderRequestFailedException)
         {
             return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
             {
@@ -132,7 +148,7 @@ public sealed class ChatCompletionsController : ControllerBase
                 }
             });
         }
-        catch (ForgeGate.Infrastructure.Providers.OpenAICompatible.ProviderResponseUnusableException)
+        catch (ProviderResponseUnusableException)
         {
             return StatusCode(StatusCodes.Status502BadGateway, new OpenAIErrorResponse
             {

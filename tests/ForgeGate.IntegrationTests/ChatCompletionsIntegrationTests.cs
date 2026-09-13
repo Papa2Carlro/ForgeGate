@@ -1,5 +1,4 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Domain.Chat;
 
 namespace ForgeGate.IntegrationTests;
 
@@ -23,7 +22,9 @@ public class ChatCompletionsIntegrationTests
 
         // When - Simulate controller flow
         var canonicalRequest = MapToCanonical(openAIRequest);
-        var canonicalResponse = await service.ExecuteAsync(canonicalRequest, CancellationToken.None);
+        var outcome = await service.ExecuteAsync(canonicalRequest, CancellationToken.None);
+        Assert.True(outcome.IsSuccess);
+        var canonicalResponse = outcome.Response!;
         var apiResponse = MapToApiResponse(canonicalResponse);
 
         // Then
@@ -49,10 +50,11 @@ public class ChatCompletionsIntegrationTests
         var failingProvider = new FailingChatCompletionProvider();
         var service = new ChatExecutionService(failingProvider);
 
-        // When & Then
+        // When
         var canonicalRequest = MapToCanonical(openAIRequest);
-        await Assert.ThrowsAsync<ForgeGate.Infrastructure.Providers.OpenAICompatible.ProviderRequestFailedException>(
-            () => service.ExecuteAsync(canonicalRequest, CancellationToken.None));
+        await Assert.ThrowsAsync<ProviderRequestFailedException>(async () => 
+            await service.ExecuteAsync(canonicalRequest, CancellationToken.None)
+        );
     }
 
     private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequestDto request)
@@ -91,21 +93,21 @@ public class ChatCompletionsIntegrationTests
 
     private sealed class FakeChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<CanonicalChatResponse> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(new CanonicalChatResponse
+            return Task.FromResult(ProviderExecutionOutcome.Success(new CanonicalChatResponse
             {
                 Model = request.Model,
                 Content = "Mock response"
-            });
+            }));
         }
     }
 
     private sealed class FailingChatCompletionProvider : IChatCompletionProvider
     {
-        public Task<CanonicalChatResponse> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
+        public Task<ProviderExecutionOutcome> ExecuteAsync(CanonicalChatRequest request, CancellationToken cancellationToken)
         {
-            throw new ForgeGate.Infrastructure.Providers.OpenAICompatible.ProviderRequestFailedException("Provider failed");
+            return Task.FromResult(ProviderExecutionOutcome.RequestFailed("Provider failed", "Details"));
         }
     }
 
