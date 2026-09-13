@@ -1,0 +1,20 @@
+{
+  "fingerprint": "db0761fb1a68b4d8",
+  "built_at": "2026-09-13T10:27:29.374275+00:00",
+  "workspace": "/Users/maksympryimak/ForgeGate",
+  "docs_root": "/Users/maksympryimak/ForgeGate/Docs",
+  "file_count": 2,
+  "chunk_count": 13,
+  "route_count": 0,
+  "map_section_count": 0,
+  "symbol_count": 0,
+  "code_path_count": 0,
+  "canonical_home_count": 0,
+  "link_count": 0,
+  "source_counts": {
+    "documentation": 0,
+    "package_docs": 1,
+    "config_truth": 1
+  },
+  "extra_source_count": 2
+}

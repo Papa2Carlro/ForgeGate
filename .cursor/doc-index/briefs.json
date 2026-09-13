@@ -1,0 +1,90 @@
+{
+  "ext/pkg/root/README.md": {
+    "path": "ext/pkg/root/README.md",
+    "title": "ForgeGate",
+    "status": "",
+    "layer": "process",
+    "source_class": "package_docs",
+    "source_role": "root_readme",
+    "package_scope": "root",
+    "authored": "human",
+    "canonicality": 0.7,
+    "workspace_rel": "README.md",
+    "canonical_path": "README.md",
+    "first_paragraph": "**An open-source LLM gateway and agent policy firewall.**",
+    "toc": [
+      {
+        "level": 1,
+        "title": "ForgeGate"
+      },
+      {
+        "level": 2,
+        "title": "Current Status"
+      },
+      {
+        "level": 2,
+        "title": "Intended Architecture"
+      },
+      {
+        "level": 2,
+        "title": "Local Prerequisites"
+      },
+      {
+        "level": 2,
+        "title": "Getting Started"
+      },
+      {
+        "level": 3,
+        "title": "Start PostgreSQL"
+      },
+      {
+        "level": 3,
+        "title": "Build & Test"
+      },
+      {
+        "level": 3,
+        "title": "Run the API"
+      },
+      {
+        "level": 3,
+        "title": "Admin UI"
+      },
+      {
+        "level": 2,
+        "title": "⚠️ Security"
+      },
+      {
+        "level": 2,
+        "title": "License"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 1973
+  },
+  "ext/config/project-mcp-pin.md": {
+    "path": "ext/config/project-mcp-pin.md",
+    "title": "Config truth — project_mcp_pin",
+    "status": "",
+    "layer": "process",
+    "source_class": "config_truth",
+    "source_role": "project_mcp_pin",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 0.9,
+    "workspace_rel": ".cursor/mcp.json",
+    "canonical_path": ".cursor/mcp.json",
+    "first_paragraph": "workspace_rel: `.cursor/mcp.json` source_class: `config_truth` source_role: `project_mcp_pin`",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Config truth — project_mcp_pin"
+      },
+      {
+        "level": 2,
+        "title": "Doc Hub pin notes"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 742
+  }
+}

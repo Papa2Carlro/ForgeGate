@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: forgegate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-forgegate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forgegate_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-forgegate}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - forgegate-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forgegate} -d ${POSTGRES_DB:-forgegate}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  forgegate-pgdata:
