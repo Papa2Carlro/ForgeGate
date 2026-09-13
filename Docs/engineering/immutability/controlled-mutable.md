@@ -1,0 +1,3 @@
+# Controlled Mutable Runtime State
+
+Mutable state allowed where mutation is actual runtime concern. Must expose behavioral APIs rather than public mutable fields/setters. Prefer health.RecordFailure(...); capacity.Acquire(...); capacity.Release(...) rather than health.Failures++; health.State = ...
