@@ -51,7 +51,21 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
             return RouteResolutionOutcome.Failure(
                 RouteResolutionFailure.NoEligibleRoute(request.RequestedModel));
 
-        var selected = eligible.First();
-        return RouteResolutionOutcome.Success(selected);
+        // Best available tier selection: Preferred > Acceptable > Fallback
+        var eligibleCandidates = candidates
+            .Where(c => eligible.Contains(c.ModelRoute))
+            .ToList();
+
+        var bestTier = eligibleCandidates
+            .Select(c => c.QualityTier)
+            .OrderBy(t => t == DeclaredQualityTier.Preferred ? 0 : t == DeclaredQualityTier.Acceptable ? 1 : 2)
+            .First();
+
+        var selectedRoute = eligibleCandidates
+            .Where(c => c.QualityTier == bestTier)
+            .Select(c => c.ModelRoute)
+            .First();
+
+        return RouteResolutionOutcome.Success(selectedRoute);
     }
 }

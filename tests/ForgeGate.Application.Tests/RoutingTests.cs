@@ -200,6 +200,248 @@ public class RoutingTests
         Assert.Equal("r1", result.Route!.ModelRouteId.Value);
     }
 
+    // Slice 6: tool capability signal + hard eligibility
+
+    [Fact]
+    public async Task Slice6_A_NoTools_PlainRequest_NonToolsRouteEligible()
+    {
+        var route = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { route } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.None };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Slice6_B_ToolsPresent_NonToolsRouteFiltered()
+    {
+        var route = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { route } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoEligibleRoute, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice6_C_ToolCapableRouteSelected()
+    {
+        var noTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var withTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r2"), "provider-model", true, ModelCapability.Tools) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { noTools, withTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r2", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice6_D_NoToolCapableRoute_NoEligibleRoute()
+    {
+        var noTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { noTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoEligibleRoute, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice6_E_NoEligibleToolRoute_DoesNotCallProvider()
+    {
+        var noTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { noTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoEligibleRoute, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice6_F_SelectedToolCapableRoute_ExecutesOnce()
+    {
+        var withTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.Tools) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { withTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r1", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice6_G_PlainRequest_DoesNotRequireTools()
+    {
+        var noTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { noTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.None };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Slice6_H_ToolChoiceNone_PlainRequest_Eligible()
+    {
+        // ToolChoice = "none" maps to ToolRequirement.None; non-tools route remains eligible
+        var noTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { noTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.None };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Slice6_I_ToolChoiceAuto_RequiresTools()
+    {
+        var noTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None) };
+        var withTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r2"), "provider-model", true, ModelCapability.Tools) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { noTools, withTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r2", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice6_J_ExplicitRequiredToolChoice_RequiresTools()
+    {
+        var withTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.Tools) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { withTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Required };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+    }
+
+    // Slice 7: declared quality tier routing
+
+    [Fact]
+    public async Task Slice7_A_PreferredBeatsAcceptable()
+    {
+        var preferred = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r-pref"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var acceptable = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r-acc"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Acceptable) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { acceptable, preferred } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-pref", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_B_AcceptableBeatsFallback()
+    {
+        var acceptable = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r-acc"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Acceptable) };
+        var fallback = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Fallback, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r-fb"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Fallback) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { fallback, acceptable } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-acc", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_C_FallbackSelectedWhenOnlyFallback()
+    {
+        var fallback = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Fallback, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r-fb"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Fallback) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { fallback } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-fb", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_D_IneligiblePreferredDoesNotBeatEligibleAcceptable()
+    {
+        var preferredDisabled = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = false, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r-pref"), "provider-model", false, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var acceptableEnabled = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r-acc"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Acceptable) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { preferredDisabled, acceptableEnabled } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-acc", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_E_ToolIncompatiblePreferredDoesNotBeatToolCapableAcceptable()
+    {
+        var preferredNoTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r-pref"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var acceptableTools = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r-acc"), "provider-model", true, ModelCapability.Tools, DeclaredQualityTier.Acceptable) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { preferredNoTools, acceptableTools } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }, ToolRequirement = ToolRequirement.Optional };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-acc", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_F_StableOrderInsidePreferredTier()
+    {
+        var pref1 = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r-pref1"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var pref2 = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r-pref2"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { pref1, pref2 } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-pref1", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_G_StableOrderInsideAcceptableTier()
+    {
+        var acc1 = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r-acc1"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Acceptable) };
+        var acc2 = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r-acc2"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Acceptable) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { acc1, acc2 } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-acc1", result.Route!.ModelRouteId.Value);
+    }
+
+    [Fact]
+    public async Task Slice7_H_UnknownModel_Unchanged()
+    {
+        var route = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { route } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "unknown", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.UnknownRequestedModel, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice7_I_NoEligibleRoute_Unchanged()
+    {
+        var disabled = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = false, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p"), LogicalModelId.From("m"), ModelRouteId.From("r1"), "provider-model", false, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { disabled } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var result = await resolver.ResolveAsync(new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } }, CancellationToken.None);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoEligibleRoute, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice7_J_ProviderExecutesSelectedQualityRouteExactlyOnce()
+    {
+        var preferred = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p1"), LogicalModelId.From("m"), ModelRouteId.From("r-pref"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Preferred) };
+        var acceptable = new ConfiguredRoute { RequestedModelAlias = "client-model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = ModelRoute.FromIdsWithOptions(ProviderId.From("p2"), LogicalModelId.From("m"), ModelRouteId.From("r-acc"), "provider-model", true, ModelCapability.None, DeclaredQualityTier.Acceptable) };
+        var config = new RoutingConfiguration { Routes = new List<ConfiguredRoute> { acceptable, preferred } };
+        var resolver = new ConfiguredRouteResolver(Options.Create(config), new HardRouteEligibilityEvaluator());
+        var request = new CanonicalChatRequest { RequestedModel = "client-model", Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } } };
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("r-pref", result.Route!.ModelRouteId.Value);
+    }
+
     [Fact]
     public async Task Slice5_G_DeterministicSelection_ConfigurationOrder()
     {

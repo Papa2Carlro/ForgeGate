@@ -16,6 +16,8 @@ public sealed class OpenAIChatCompletionRequest
     public double? FrequencyPenalty { get; init; }
     public double? PresencePenalty { get; init; }
     public bool? Stream { get; init; }
+    public List<OpenAITool> Tools { get; init; } = new();
+    public string? ToolChoice { get; init; }
 }
 
 /// <summary>

@@ -23,6 +23,11 @@ public sealed class ConfiguredRoute
     /// Gets or sets whether this route is enabled.
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the declared quality tier for this route.
+    /// </summary>
+    public DeclaredQualityTier QualityTier { get; set; } = DeclaredQualityTier.Acceptable;
 }
 
 /// <summary>

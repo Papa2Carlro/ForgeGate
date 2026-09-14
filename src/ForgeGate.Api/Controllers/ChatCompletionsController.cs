@@ -228,6 +228,17 @@ public sealed class ChatCompletionsController : ControllerBase
 
     private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequest request)
     {
+        var toolRequirement = ToolRequirement.None;
+        if (request.Tools != null && request.Tools.Any())
+        {
+            if (request.ToolChoice != null && (request.ToolChoice == "none" || request.ToolChoice == ""))
+                toolRequirement = ToolRequirement.None;
+            else if (request.ToolChoice != null && request.ToolChoice.Contains("function"))
+                toolRequirement = ToolRequirement.Required;
+            else
+                toolRequirement = ToolRequirement.Optional;
+        }
+
         return new CanonicalChatRequest
         {
             RequestedModel = request.Model ?? string.Empty,
@@ -235,7 +246,8 @@ public sealed class ChatCompletionsController : ControllerBase
             {
                 Role = m.Role,
                 Content = m.Content
-            }).ToList()
+            }).ToList(),
+            ToolRequirement = toolRequirement
         };
     }
 

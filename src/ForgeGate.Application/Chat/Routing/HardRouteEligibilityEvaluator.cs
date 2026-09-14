@@ -12,12 +12,9 @@ public sealed class HardRouteEligibilityEvaluator : IRouteEligibilityEvaluator
         if (!route.Enabled)
             reasons.Add("Disabled");
 
-        // Tools capability: only enforce if request implies tool usage.
-        // For this slice, we treat any non-empty request with a tool-related signal as requiring Tools.
-        // Since CanonicalChatRequest currently has no explicit Tools field, we defer full tool-capability
-        // enforcement to a later slice unless the request model is extended.
-        // For now: if route has no Tools capability and we detect a future tool signal, filter.
-        // Currently: no tool signal in CanonicalChatRequest, so Tools filter is deferred.
+        if ((request.ToolRequirement == ToolRequirement.Optional || request.ToolRequirement == ToolRequirement.Required)
+            && !route.Capabilities.HasFlag(ModelCapability.Tools))
+            reasons.Add("CapabilityUnsupported");
 
         if (reasons.Any())
             return RouteEligibilityResult.Ineligible(reasons);
