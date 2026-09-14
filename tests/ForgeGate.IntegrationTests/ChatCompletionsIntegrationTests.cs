@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Application.Chat.Routing;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.IntegrationTests;
@@ -19,7 +20,7 @@ public class ChatCompletionsIntegrationTests
         };
 
         var mockProvider = new FakeChatCompletionProvider();
-        var service = new ChatExecutionService(mockProvider);
+        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
         var route = ModelRoute.FromIds(
             ProviderId.From("openai"),
             LogicalModelId.From("gpt-4"),
@@ -53,7 +54,7 @@ public class ChatCompletionsIntegrationTests
         };
 
         var failingProvider = new FailingChatCompletionProvider();
-        var service = new ChatExecutionService(failingProvider);
+        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
         var route = ModelRoute.FromIds(
             ProviderId.From("openai"),
             LogicalModelId.From("gpt-4"),

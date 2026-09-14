@@ -1,3 +1,4 @@
+using ForgeGate.Application.Chat.Routing;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Chat;
@@ -9,10 +10,12 @@ namespace ForgeGate.Application.Chat;
 public sealed class ChatExecutionService
 {
     private readonly IChatCompletionProvider _provider;
+    private readonly IRouteHealthFeedback _healthFeedback;
 
-    public ChatExecutionService(IChatCompletionProvider provider)
+    public ChatExecutionService(IChatCompletionProvider provider, IRouteHealthFeedback healthFeedback)
     {
-        _provider = provider;
+        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        _healthFeedback = healthFeedback ?? throw new ArgumentNullException(nameof(healthFeedback));
     }
 
     /// <summary>
@@ -39,7 +42,13 @@ public sealed class ChatExecutionService
 
         // Delegate to provider - Application does not contain provider-specific logic
         var outcome = await _provider.ExecuteAsync(route, request, cancellationToken);
-        
+
+        // Passive health feedback: observe outcome without altering it
+        if (outcome.IsSuccess)
+            _healthFeedback.RecordSuccess(route);
+        else if (outcome.FailureValue != null)
+            _healthFeedback.RecordFailure(route, outcome.FailureValue);
+
         // Provider failures are expected operational outcomes, returned as typed outcome
         // Do NOT throw for expected provider failures
         return outcome;

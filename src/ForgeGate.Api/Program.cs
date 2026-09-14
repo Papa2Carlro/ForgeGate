@@ -19,7 +19,12 @@ builder.Services.Configure<RoutingConfiguration>(builder.Configuration.GetSectio
 
 // Add Application services
 builder.Services.AddScoped<IChatCompletionProvider, OpenAIChatCompletionProvider>();
-builder.Services.AddScoped<IRouteEligibilityEvaluator, HardRouteEligibilityEvaluator>();
+builder.Services.AddSingleton<IRouteHealthStateProvider, InMemoryRouteHealthStateProvider>();
+builder.Services.AddScoped<IRouteHealthFeedback, RouteHealthFeedback>();
+builder.Services.AddScoped<IRouteEligibilityEvaluator, RouteOperationalEligibilityEvaluator>(sp =>
+    new RouteOperationalEligibilityEvaluator(
+        new HardRouteEligibilityEvaluator(),
+        sp.GetRequiredService<IRouteHealthStateProvider>()));
 builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>();
 builder.Services.AddScoped<ChatExecutionService>();
 
