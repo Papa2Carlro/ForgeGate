@@ -1,6 +1,11 @@
 using ForgeGate.Application.Chat;
 using ForgeGate.Application.Chat.Routing.Capacity;
+using ForgeGate.Application.Chat.Routing.Health;
+using ForgeGate.Application.Chat.Routing.Eligibility;
+using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Domain.Providers;
+using ForgeGate.Infrastructure.Routing;
+using Microsoft.Extensions.Options;
 
 namespace ForgeGate.Application.Tests.Chat.Routing.Capacity;
 

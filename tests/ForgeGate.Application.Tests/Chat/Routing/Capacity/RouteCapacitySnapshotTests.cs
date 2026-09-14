@@ -1,5 +1,6 @@
 using ForgeGate.Application.Chat;
 using ForgeGate.Application.Chat.Routing.Capacity;
+using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Application.Chat.Routing.Eligibility;
 using ForgeGate.Domain.Providers;
 using ForgeGate.Infrastructure.Routing;
@@ -120,9 +121,9 @@ public class RouteCapacitySnapshotTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IRouteCapacityCoordinator, InMemoryRouteCapacityCoordinator>();
-        services.AddSingleton<IRouteCapacityStateProvider>(sp => sp.GetRequiredService<IRouteCapacityCoordinator>() as IRouteCapacityStateProvider 
+        services.AddSingleton<IRouteCapacityStateProvider>(sp => sp.GetRequiredService<IRouteCapacityCoordinator>() as IRouteCapacityStateProvider
             ?? throw new InvalidOperationException("Coordinator does not implement state provider"));
-        
+
         var provider = services.BuildServiceProvider();
         var coordinator = provider.GetRequiredService<IRouteCapacityCoordinator>();
         var stateProvider = provider.GetRequiredService<IRouteCapacityStateProvider>();

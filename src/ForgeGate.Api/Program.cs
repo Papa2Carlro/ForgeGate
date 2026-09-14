@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Application.Chat.Execution;
 using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Application.Chat.Routing.Capacity;
@@ -38,6 +39,8 @@ builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>(sp =>
         sp.GetRequiredService<IRouteEligibilityEvaluator>(),
         sp.GetRequiredService<IRouteHealthRanker>(),
         sp.GetRequiredService<IRouteCapacityStateProvider>()));
+builder.Services.AddScoped<ChatExecutionService>();
+builder.Services.AddScoped<IChatCompletionOrchestrator, ChatCompletionOrchestrator>();
 
 var app = builder.Build();
 

@@ -35,8 +35,21 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
         CanonicalChatRequest request,
         CancellationToken cancellationToken)
     {
-        if (request == null)
-            throw new ArgumentNullException(nameof(request));
+        var context = RouteResolutionContext.CreateFresh(request);
+        return await ResolveAsync(context, cancellationToken);
+    }
+
+    public async Task<RouteResolutionOutcome> ResolveAsync(
+        RouteResolutionContext context,
+        CancellationToken cancellationToken)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        if (context.Request == null)
+            throw new ArgumentNullException(nameof(context.Request));
+
+        var request = context.Request;
 
         if (string.IsNullOrWhiteSpace(request.RequestedModel))
             return RouteResolutionOutcome.Failure(
@@ -66,6 +79,10 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
                 ? candidate.ModelRoute with { MaxConcurrentExecutions = candidate.MaxConcurrentExecutions }
                 : candidate.ModelRoute;
 
+            // Exclude routes that have already been attempted in this request
+            if (context.ExcludedRouteIds.Contains(effectiveRoute.ModelRouteId))
+                continue;
+
             var result = _eligibilityEvaluator.Evaluate(request, effectiveRoute);
             if (result.IsEligible)
                 eligible.Add((candidate, effectiveRoute));
@@ -75,13 +92,26 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
             return RouteResolutionOutcome.Failure(
                 RouteResolutionFailure.NoEligibleRoute(request.RequestedModel));
 
+        // Apply quality tier lock if set (from previous failover attempt)
+        var tierEligible = context.LockedQualityTier.HasValue
+            ? eligible.Where(e => e.candidate.QualityTier == context.LockedQualityTier.Value).ToList()
+            : eligible;
+
+        if (!tierEligible.Any())
+        {
+            // If tier is locked and no routes in that tier, return NoEligibleRoute
+            // rather than downgrading to a lower tier
+            return RouteResolutionOutcome.Failure(
+                RouteResolutionFailure.NoEligibleRoute(request.RequestedModel));
+        }
+
         // Select BEST AVAILABLE DECLARED QUALITY TIER only - no fallback
-        var bestTier = eligible
+        var bestTier = tierEligible
             .Select(e => e.candidate.QualityTier)
             .OrderBy(t => t == DeclaredQualityTier.Preferred ? 0 : t == DeclaredQualityTier.Acceptable ? 1 : 2)
             .First();
 
-        var bestTierRoutes = eligible
+        var bestTierRoutes = tierEligible
             .Where(e => e.candidate.QualityTier == bestTier)
             .Select(e => e.effectiveRoute)
             .ToList();

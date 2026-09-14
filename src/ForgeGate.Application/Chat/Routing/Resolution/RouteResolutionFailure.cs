@@ -8,7 +8,7 @@ namespace ForgeGate.Application.Chat.Routing.Resolution;
 /// </summary>
 public sealed record RouteResolutionFailure
 {
-    private RouteResolutionFailure(RouteResolutionReason reason, string? details = null)
+    internal RouteResolutionFailure(RouteResolutionReason reason, string? details = null)
     {
         Reason = reason;
         Details = details;

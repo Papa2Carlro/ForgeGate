@@ -17,4 +17,15 @@ public interface IRouteResolver
     Task<RouteResolutionOutcome> ResolveAsync(
         CanonicalChatRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Resolves the canonical chat request with exclusion context for failover.
+    /// Excluded routes are filtered out, and quality tier may be locked.
+    /// </summary>
+    /// <param name="context">Resolution context with exclusions and tier lock.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>The route resolution outcome.</returns>
+    Task<RouteResolutionOutcome> ResolveAsync(
+        RouteResolutionContext context,
+        CancellationToken cancellationToken);
 }

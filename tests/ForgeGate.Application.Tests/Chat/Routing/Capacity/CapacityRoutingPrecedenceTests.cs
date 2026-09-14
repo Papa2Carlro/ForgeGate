@@ -2,6 +2,7 @@ using ForgeGate.Application.Chat;
 using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Application.Chat.Routing.Eligibility;
 using ForgeGate.Application.Chat.Routing.Health;
+using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Domain.Providers;
 using ForgeGate.Infrastructure.Routing;
 using Microsoft.Extensions.Options;
@@ -17,7 +18,7 @@ public class CapacityRoutingPrecedenceTests
     public async Task HealthOutranksCapacity()
     {
         var healthState = new InMemoryRouteHealthStateProvider();
-        
+
         var routeA = ModelRoute.FromIdsWithOptions(
             ProviderId.From("a"),
             LogicalModelId.From("model"),
@@ -27,7 +28,7 @@ public class CapacityRoutingPrecedenceTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 2);
-        
+
         var routeB = ModelRoute.FromIdsWithOptions(
             ProviderId.From("b"),
             LogicalModelId.From("model"),
@@ -81,7 +82,7 @@ public class CapacityRoutingPrecedenceTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 1);
-        
+
         var routeB = ModelRoute.FromIdsWithOptions(
             ProviderId.From("b"),
             LogicalModelId.From("model"),
@@ -131,7 +132,7 @@ public class CapacityRoutingPrecedenceTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 1);
-        
+
         var routeB = ModelRoute.FromIdsWithOptions(
             ProviderId.From("b"),
             LogicalModelId.From("model"),
@@ -186,7 +187,7 @@ public class CapacityRoutingPrecedenceTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 100);
-        
+
         var enabledRoute = ModelRoute.FromIdsWithOptions(
             ProviderId.From("enabled"),
             LogicalModelId.From("model"),
@@ -236,7 +237,7 @@ public class CapacityRoutingPrecedenceTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 100);
-        
+
         var toolRoute = ModelRoute.FromIdsWithOptions(
             ProviderId.From("tool"),
             LogicalModelId.From("model"),

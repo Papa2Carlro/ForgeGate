@@ -2,6 +2,7 @@ using ForgeGate.Application.Chat;
 using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Application.Chat.Routing.Eligibility;
+using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Application.Tests.Chat.TestDoubles;
 using ForgeGate.Domain.Providers;
 using ForgeGate.Infrastructure.Routing;
@@ -27,7 +28,7 @@ public class CapacityRoutingStateTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 1);
-        
+
         var routeB = ModelRoute.FromIdsWithOptions(
             ProviderId.From("b"),
             LogicalModelId.From("model"),
@@ -201,7 +202,7 @@ public class CapacityRoutingStateTests
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 1);
-        
+
         var acceptableRoute = ModelRoute.FromIdsWithOptions(
             ProviderId.From("acceptable"),
             LogicalModelId.From("model"),
@@ -249,9 +250,9 @@ public class CapacityRoutingStateTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IRouteCapacityCoordinator, InMemoryRouteCapacityCoordinator>();
-        services.AddSingleton<IRouteCapacityStateProvider>(sp => sp.GetRequiredService<IRouteCapacityCoordinator>() as IRouteCapacityStateProvider 
+        services.AddSingleton<IRouteCapacityStateProvider>(sp => sp.GetRequiredService<IRouteCapacityCoordinator>() as IRouteCapacityStateProvider
             ?? throw new InvalidOperationException("Coordinator does not implement state provider"));
-        
+
         var provider = services.BuildServiceProvider();
         var coordinator = provider.GetRequiredService<IRouteCapacityCoordinator>();
         var stateProvider = provider.GetRequiredService<IRouteCapacityStateProvider>();
