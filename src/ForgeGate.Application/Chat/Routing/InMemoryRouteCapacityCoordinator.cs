@@ -24,7 +24,10 @@ public sealed class InMemoryRouteCapacityCoordinator : IRouteCapacityCoordinator
         // Check if route has a configured limit
         int? configuredLimit = route.MaxConcurrentExecutions;
 
-        if (configuredLimit == null || configuredLimit.Value <= 0)
+        if (configuredLimit.HasValue && configuredLimit.Value <= 0)
+            throw new ArgumentOutOfRangeException(nameof(route.MaxConcurrentExecutions), "MaxConcurrentExecutions must be null (unbounded) or >= 1");
+
+        if (!configuredLimit.HasValue)
         {
             // Unbounded route - always acquire
             return RouteCapacityAcquireResult.Acquired(new RouteCapacityReservation(() => { }));

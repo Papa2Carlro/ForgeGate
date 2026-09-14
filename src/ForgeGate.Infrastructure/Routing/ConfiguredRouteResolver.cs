@@ -44,12 +44,22 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
             return RouteResolutionOutcome.Failure(
                 RouteResolutionFailure.UnknownRequestedModel(request.RequestedModel));
 
-        var eligible = new List<ModelRoute>();
+        var eligible = new List<(ConfiguredRoute candidate, ModelRoute effectiveRoute)>();
         foreach (var candidate in candidates)
         {
-            var result = _eligibilityEvaluator.Evaluate(request, candidate.ModelRoute);
+            // Merge ConfiguredRoute.MaxConcurrentExecutions into ModelRoute if set
+            if (candidate.MaxConcurrentExecutions.HasValue && candidate.MaxConcurrentExecutions.Value <= 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(ConfiguredRoute.MaxConcurrentExecutions),
+                    $"MaxConcurrentExecutions must be null (unbounded) or >= 1, got {candidate.MaxConcurrentExecutions.Value}");
+
+            var effectiveRoute = candidate.MaxConcurrentExecutions.HasValue
+                ? candidate.ModelRoute with { MaxConcurrentExecutions = candidate.MaxConcurrentExecutions }
+                : candidate.ModelRoute;
+
+            var result = _eligibilityEvaluator.Evaluate(request, effectiveRoute);
             if (result.IsEligible)
-                eligible.Add(candidate.ModelRoute);
+                eligible.Add((candidate, effectiveRoute));
         }
 
         if (!eligible.Any())
@@ -57,18 +67,14 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
                 RouteResolutionFailure.NoEligibleRoute(request.RequestedModel));
 
         // Best available tier selection: Preferred > Acceptable > Fallback
-        var eligibleCandidates = candidates
-            .Where(c => eligible.Contains(c.ModelRoute))
-            .ToList();
-
-        var bestTier = eligibleCandidates
-            .Select(c => c.QualityTier)
+        var bestTier = eligible
+            .Select(e => e.candidate.QualityTier)
             .OrderBy(t => t == DeclaredQualityTier.Preferred ? 0 : t == DeclaredQualityTier.Acceptable ? 1 : 2)
             .First();
 
-        var bestTierRoutes = eligibleCandidates
-            .Where(c => c.QualityTier == bestTier)
-            .Select(c => c.ModelRoute)
+        var bestTierRoutes = eligible
+            .Where(e => e.candidate.QualityTier == bestTier)
+            .Select(e => e.effectiveRoute)
             .ToList();
 
         // Order routes within the best quality tier by health (Healthy > Unknown > Degraded)

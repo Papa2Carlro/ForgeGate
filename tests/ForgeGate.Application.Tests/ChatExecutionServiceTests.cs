@@ -1101,6 +1101,7 @@ public class ChatExecutionServiceTests
     [Fact]
     public async Task Slice11_N_ConcurrentAcquisition_DoesNotExceedLimit()
     {
+        // Direct reservation-based proof: hold exactly 2, prove no more can be acquired
         var route = ModelRoute.FromIdsWithOptions(
             ProviderId.From("test"),
             LogicalModelId.From("model"),
@@ -1111,26 +1112,28 @@ public class ChatExecutionServiceTests
             qualityTier: DeclaredQualityTier.Acceptable,
             maxConcurrentExecutions: 2);
         var coordinator = new InMemoryRouteCapacityCoordinator();
-        var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "ok" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
 
-        var request = new CanonicalChatRequest
-        {
-            RequestedModel = "model",
-            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
-        };
+        // Acquire and HOLD exactly 2 reservations
+        var hold1 = await coordinator.TryAcquireAsync(route, CancellationToken.None);
+        var hold2 = await coordinator.TryAcquireAsync(route, CancellationToken.None);
+        Assert.NotNull(hold1);
+        Assert.NotNull(hold2);
+        Assert.Equal(2, coordinator.GetActiveCount(route.ModelRouteId));
 
-        var tasks = Enumerable.Range(0, 5).Select(_ => service.ExecuteAsync(request, route, CancellationToken.None)).ToList();
-        await Task.WhenAll(tasks);
+        // While both are held, third acquisition must fail
+        var thirdResult = await coordinator.TryAcquireAsync(route, CancellationToken.None);
+        Assert.Equal(RouteCapacityAcquireStatus.AtCapacity, thirdResult.Status);
 
-        var successes = tasks.Count(t => t.Result.IsSuccess);
-        Assert.True(successes >= 2);
+        // Cleanup
+        hold1!.Reservation!.Dispose();
+        hold2!.Reservation!.Dispose();
         Assert.Equal(0, coordinator.GetActiveCount(route.ModelRouteId));
     }
 
     [Fact]
     public async Task Slice11_O_ResolverBehavior_Unchanged()
     {
+        // routeA has limit=1 and we hold its only slot - resolver should still select it
         var routeA = ModelRoute.FromIdsWithOptions(
             ProviderId.From("p-a"),
             LogicalModelId.From("model"),
@@ -1138,7 +1141,8 @@ public class ChatExecutionServiceTests
             "native-a",
             enabled: true,
             capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred);
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
         var routeB = ModelRoute.FromIdsWithOptions(
             ProviderId.From("p-b"),
             LogicalModelId.From("model"),
@@ -1146,10 +1150,14 @@ public class ChatExecutionServiceTests
             "native-b",
             enabled: true,
             capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred);
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
 
         var coordinator = new InMemoryRouteCapacityCoordinator();
-        await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        // Hold routeA's only slot
+        var heldReservation = await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        Assert.NotNull(heldReservation);
+        Assert.Equal(1, coordinator.GetActiveCount(routeA.ModelRouteId));
 
         var config = new RoutingConfiguration
         {
@@ -1182,9 +1190,223 @@ public class ChatExecutionServiceTests
             Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
         };
 
+        // Resolver should still select routeA (capacity is not considered)
         var result = await resolver.ResolveAsync(request, CancellationToken.None);
         Assert.True(result.IsSuccess);
         Assert.Equal("r-a", result.Route!.ModelRouteId.Value);
+
+        // Cleanup
+        heldReservation!.Reservation!.Dispose();
+    }
+
+    [Fact]
+    public async Task Slice11_P_ZeroConcurrencyLimit_Rejected()
+    {
+        // Zero is invalid - should throw at construction time
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ModelRoute.FromIdsWithOptions(
+                ProviderId.From("test"),
+                LogicalModelId.From("model"),
+                ModelRouteId.From("r1"),
+                "native",
+                enabled: true,
+                capabilities: ModelCapability.None,
+                qualityTier: DeclaredQualityTier.Acceptable,
+                maxConcurrentExecutions: 0));
+    }
+
+    [Fact]
+    public async Task Slice11_Q_NegativeConcurrencyLimit_Rejected()
+    {
+        // Negative is invalid - should throw at construction time
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ModelRoute.FromIdsWithOptions(
+                ProviderId.From("test"),
+                LogicalModelId.From("model"),
+                ModelRouteId.From("r1"),
+                "native",
+                enabled: true,
+                capabilities: ModelCapability.None,
+                qualityTier: DeclaredQualityTier.Acceptable,
+                maxConcurrentExecutions: -1));
+    }
+
+    [Fact]
+    public async Task Slice11_R_ConfigurationPropagation()
+    {
+        // Prove that ConfiguredRoute.MaxConcurrentExecutions propagates to ModelRoute
+        var configuredRoute = new ConfiguredRoute
+        {
+            RequestedModelAlias = "model",
+            Enabled = true,
+            QualityTier = DeclaredQualityTier.Preferred,
+            MaxConcurrentExecutions = 3,
+            ModelRoute = ModelRoute.FromIdsWithOptions(
+                ProviderId.From("test"),
+                LogicalModelId.From("model"),
+                ModelRouteId.From("r1"),
+                "native",
+                enabled: true,
+                capabilities: ModelCapability.None,
+                qualityTier: DeclaredQualityTier.Preferred)
+        };
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute> { configuredRoute }
+        };
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()));
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Route);
+        Assert.Equal(3, result.Route!.MaxConcurrentExecutions);
+    }
+
+    [Fact]
+    public async Task Slice11_S_ConfiguredZeroLimit_Rejected()
+    {
+        // Zero is invalid - should throw during resolution
+        var configuredRoute = new ConfiguredRoute
+        {
+            RequestedModelAlias = "model",
+            Enabled = true,
+            QualityTier = DeclaredQualityTier.Preferred,
+            MaxConcurrentExecutions = 0,
+            ModelRoute = ModelRoute.FromIdsWithOptions(
+                ProviderId.From("test"),
+                LogicalModelId.From("model"),
+                ModelRouteId.From("r1"),
+                "native",
+                enabled: true,
+                capabilities: ModelCapability.None,
+                qualityTier: DeclaredQualityTier.Preferred)
+        };
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute> { configuredRoute }
+        };
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()));
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => resolver.ResolveAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    }
+
+    [Fact]
+    public async Task Slice11_T_ConfiguredNegativeLimit_Rejected()
+    {
+        // Negative is invalid - should throw during resolution
+        var configuredRoute = new ConfiguredRoute
+        {
+            RequestedModelAlias = "model",
+            Enabled = true,
+            QualityTier = DeclaredQualityTier.Preferred,
+            MaxConcurrentExecutions = -1,
+            ModelRoute = ModelRoute.FromIdsWithOptions(
+                ProviderId.From("test"),
+                LogicalModelId.From("model"),
+                ModelRouteId.From("r1"),
+                "native",
+                enabled: true,
+                capabilities: ModelCapability.None,
+                qualityTier: DeclaredQualityTier.Preferred)
+        };
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute> { configuredRoute }
+        };
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()));
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => resolver.ResolveAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    }
+
+    [Fact]
+    public async Task Slice11_U_Coordinator_DefensivelyRejectsInvalidLimit()
+    {
+        // Construct an invalid ModelRoute via 'with' expression (bypasses factory validation)
+        // This tests the coordinator's defensive behavior against invalid states
+        var invalidRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("test"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("r1"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Acceptable,
+            maxConcurrentExecutions: 1) with { MaxConcurrentExecutions = 0 };
+
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => coordinator.TryAcquireAsync(invalidRoute, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Slice11_V_ConfiguredNullLimit_RemainsUnbounded()
+    {
+        // Null should propagate as unbounded
+        var configuredRoute = new ConfiguredRoute
+        {
+            RequestedModelAlias = "model",
+            Enabled = true,
+            QualityTier = DeclaredQualityTier.Preferred,
+            MaxConcurrentExecutions = null,
+            ModelRoute = ModelRoute.FromIdsWithOptions(
+                ProviderId.From("test"),
+                LogicalModelId.From("model"),
+                ModelRouteId.From("r1"),
+                "native",
+                enabled: true,
+                capabilities: ModelCapability.None,
+                qualityTier: DeclaredQualityTier.Preferred)
+        };
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute> { configuredRoute }
+        };
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()));
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Route);
+        Assert.Null(result.Route!.MaxConcurrentExecutions);
     }
 
     private sealed class FakeThrowingProvider : IChatCompletionProvider

@@ -30,6 +30,8 @@ public sealed record ModelRoute
 
     public static ModelRoute FromIdsWithOptions(ProviderId providerId, LogicalModelId logicalModelId, ModelRouteId modelRouteId, string providerNativeModelId, bool enabled, ModelCapability capabilities, DeclaredQualityTier qualityTier = DeclaredQualityTier.Acceptable, int? maxConcurrentExecutions = null)
     {
+        if (maxConcurrentExecutions.HasValue && maxConcurrentExecutions.Value <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrentExecutions), "MaxConcurrentExecutions must be null (unbounded) or >= 1");
         return new ModelRoute(modelRouteId, providerId, logicalModelId, providerNativeModelId, enabled, capabilities, qualityTier, maxConcurrentExecutions);
     }
 }
