@@ -1,5 +1,12 @@
 using ForgeGate.Application.Chat;
 using ForgeGate.Domain.Providers;
+using ForgeGate.Infrastructure.Providers.OpenAICompatible;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
 
 namespace ForgeGate.Application.Tests;
 
@@ -143,23 +150,22 @@ public class ProviderAdapterTests
             }
         };
 
-        // Fake provider that returns what the REAL OpenAIChatCompletionProvider would return
-        // for a malformed JSON response (JsonException during deserialization)
-        var provider = new FakeProviderThatReturnsFailure(
-            ProviderFailureCategory.MalformedResponse,
-            ProviderFailureRetryability.NotRetryable,
-            ProviderFailureScope.Provider,
-            SanitizedUpstreamMessage: "Failed to deserialize provider response"
-        );
+        // Use REAL OpenAIChatCompletionProvider with mock HTTP handler returning malformed JSON
+        var handler = new MockHttpMessageHandler("{ invalid json", HttpStatusCode.OK);
+        var httpClient = new HttpClient(handler);
+        var configuration = new EndpointOnlyConfiguration("https://example.test/v1/chat/completions");
+        var provider = new OpenAIChatCompletionProvider(httpClient, configuration);
 
         // When
         var outcome = await provider.ExecuteAsync(route, request, CancellationToken.None);
 
         // Then
         Assert.False(outcome.IsSuccess);
-        Assert.Equal(ProviderFailureCategory.MalformedResponse, outcome.FailureValue!.Category);
-        Assert.Equal(ProviderFailureRetryability.NotRetryable, outcome.FailureValue!.Retryability);
-        Assert.Equal(ProviderFailureScope.Provider, outcome.FailureValue!.Scope);
+        Assert.Null(outcome.Response);
+        Assert.NotNull(outcome.FailureValue);
+        Assert.Equal(ProviderFailureCategory.MalformedResponse, outcome.FailureValue.Category);
+        Assert.Equal(ProviderFailureRetryability.NotRetryable, outcome.FailureValue.Retryability);
+        Assert.Equal(ProviderFailureScope.Provider, outcome.FailureValue.Scope);
     }
 
     [Fact]
@@ -186,7 +192,7 @@ public class ProviderAdapterTests
             ProviderFailureCategory.NetworkFailure,
             ProviderFailureRetryability.RetryViaAnotherRoute,
             ProviderFailureScope.Provider,
-            SanitizedUpstreamMessage: null
+            null
         );
 
         // When
@@ -225,12 +231,9 @@ public class ProviderAdapterTests
         // (matching what the REAL OpenAIChatCompletionProvider does)
         var provider = new FakeProviderThatThrowsOnCancelledToken();
 
-        // When
-        var outcome = await provider.ExecuteAsync(route, request, cts.Token);
-
-        // Then
-        Assert.False(outcome.IsSuccess);
-        Assert.Null(outcome.FailureValue); // Should be cancelled, not a failure
+        // When/Then
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            provider.ExecuteAsync(route, request, cts.Token));
     }
 
     private sealed class FakeProviderThatReturnsFailure : IChatCompletionProvider
@@ -276,7 +279,6 @@ public class ProviderAdapterTests
             return Task.FromResult(ProviderExecutionOutcome.Success(new CanonicalChatResponse { Content = "test" }));
         }
     }
-}
 
     private sealed class FailingHttpRequestChatCompletionProvider : IChatCompletionProvider
     {
@@ -287,19 +289,50 @@ public class ProviderAdapterTests
         }
     }
 
-    private sealed class FailingMalformedJsonChatCompletionProvider : IChatCompletionProvider
+    private sealed class EndpointOnlyConfiguration : IConfiguration
     {
-        public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
+        private readonly string _endpoint;
+
+        public EndpointOnlyConfiguration(string endpoint)
         {
-            // Return HTTP success but with invalid JSON that will cause JsonException
-            var httpResponse = new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK);
-            httpResponse.Content = new System.Net.Http.StringContent("{ invalid json");
-            return Task.FromResult(new ProviderExecutionOutcome
+            _endpoint = endpoint;
+        }
+
+        string? IConfiguration.this[string key]
+        {
+            get => key == "OpenAI:Endpoint" ? _endpoint : null;
+            set => throw new NotSupportedException();
+        }
+
+        IEnumerable<IConfigurationSection> IConfiguration.GetChildren()
+            => Enumerable.Empty<IConfigurationSection>();
+
+        Microsoft.Extensions.Primitives.IChangeToken IConfiguration.GetReloadToken()
+            => throw new NotSupportedException();
+
+        IConfigurationSection IConfiguration.GetSection(string key)
+            => throw new NotSupportedException();
+    }
+}
+
+// Simple mock HTTP handler for testing
+    class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly string _content;
+        private readonly HttpStatusCode _statusCode;
+
+        public MockHttpMessageHandler(string content, HttpStatusCode statusCode)
+        {
+            _content = content;
+            _statusCode = statusCode;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage
             {
-                IsSuccess = true,
-                Response = new CanonicalChatResponse { Content = "" } // This won't actually be used due to the exception
+                StatusCode = _statusCode,
+                Content = new StringContent(_content)
             });
         }
     }
-}
-}

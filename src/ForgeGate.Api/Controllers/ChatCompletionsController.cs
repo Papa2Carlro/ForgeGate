@@ -1,4 +1,5 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Application.Chat.Routing;
 using ForgeGate.Domain.Providers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +10,14 @@ namespace ForgeGate.Api.Controllers;
 public sealed class ChatCompletionsController : ControllerBase
 {
     private readonly ChatExecutionService _chatExecutionService;
+    private readonly IRouteResolver _routeResolver;
 
-    public ChatCompletionsController(ChatExecutionService chatExecutionService)
+    public ChatCompletionsController(
+        ChatExecutionService chatExecutionService,
+        IRouteResolver routeResolver)
     {
         _chatExecutionService = chatExecutionService;
+        _routeResolver = routeResolver ?? throw new ArgumentNullException(nameof(routeResolver));
     }
 
     /// <summary>
@@ -96,15 +101,53 @@ public sealed class ChatCompletionsController : ControllerBase
             }
 
             // Map API request to canonical model
-            var route = ModelRoute.FromIds(
-                ProviderId.From("openai"),
-                LogicalModelId.From(request.Model ?? ""),
-                ModelRouteId.From($"openai:{request.Model ?? ""}")
-            );
             var canonicalRequest = MapToCanonical(request);
 
-            // Execute chat completion
-            var outcome = await _chatExecutionService.ExecuteAsync(canonicalRequest, route, cancellationToken);
+            // Resolve route using application-owned route resolver
+            var routeResolutionOutcome = await _routeResolver.ResolveAsync(canonicalRequest, cancellationToken);
+            
+            // Handle route resolution failures
+            if (!routeResolutionOutcome.IsSuccess)
+            {
+                var failure = routeResolutionOutcome.FailureValue!;
+                return failure.Reason switch
+                {
+                    RouteResolutionReason.UnknownRequestedModel => BadRequest(new OpenAIErrorResponse
+                    {
+                        Error = new OpenAIError
+                        {
+                            Message = $"Model '{failure.Details?.Split('\'')[1].Split('\'')[0]}' not found",
+                            Type = "invalid_request_error",
+                            Param = "model",
+                            Code = "model_not_found"
+                        }
+                    }),
+                    RouteResolutionReason.NoConfiguredRoute => StatusCode(StatusCodes.Status503ServiceUnavailable, new OpenAIErrorResponse
+                    {
+                        Error = new OpenAIError
+                        {
+                            Message = "No routes configured",
+                            Type = "api_error",
+                            Param = null,
+                            Code = "no_routes_configured"
+                        }
+                    }),
+                    _ => StatusCode(StatusCodes.Status500InternalServerError, new OpenAIErrorResponse
+                    {
+                        Error = new OpenAIError
+                        {
+                            Message = "Route resolution failed",
+                            Type = "api_error",
+                            Param = null,
+                            Code = "route_resolution_failed"
+                        }
+                    })
+                };
+            }
+
+            // Execute chat completion with resolved route
+            var resolvedRoute = routeResolutionOutcome.Route!;
+            var outcome = await _chatExecutionService.ExecuteAsync(canonicalRequest, resolvedRoute, cancellationToken);
 
             // Map outcome to API response
             if (!outcome.IsSuccess)
@@ -127,7 +170,7 @@ public sealed class ChatCompletionsController : ControllerBase
             }
 
             // Map canonical response to API response
-            var apiResponse = MapToApiResponse(outcome.Response!, route);
+            var apiResponse = MapToApiResponse(outcome.Response!, resolvedRoute);
 
             return Ok(apiResponse);
         }
