@@ -19,6 +19,7 @@ builder.Services.Configure<RoutingConfiguration>(builder.Configuration.GetSectio
 
 // Add Application services
 builder.Services.AddScoped<IChatCompletionProvider, OpenAIChatCompletionProvider>();
+builder.Services.AddScoped<IRouteEligibilityEvaluator, HardRouteEligibilityEvaluator>();
 builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>();
 builder.Services.AddScoped<ChatExecutionService>();
 

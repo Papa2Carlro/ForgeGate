@@ -49,6 +49,13 @@ public sealed record RouteResolutionFailure
             RouteResolutionReason.NoConfiguredRoute,
             "No routes are configured");
     }
+
+    public static RouteResolutionFailure NoEligibleRoute(string requestedModel)
+    {
+        return new RouteResolutionFailure(
+            RouteResolutionReason.NoEligibleRoute,
+            $"No eligible route for requested model '{requestedModel}'");
+    }
 }
 
 /// <summary>
@@ -64,5 +71,6 @@ public enum RouteResolutionReason
     /// <summary>
     /// No routes are configured in the system.
     /// </summary>
-    NoConfiguredRoute
+    NoConfiguredRoute,
+    NoEligibleRoute
 }

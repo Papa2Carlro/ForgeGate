@@ -122,6 +122,16 @@ public sealed class ChatCompletionsController : ControllerBase
                             Code = "model_not_found"
                         }
                     }),
+                    RouteResolutionReason.NoEligibleRoute => BadRequest(new OpenAIErrorResponse
+                    {
+                        Error = new OpenAIError
+                        {
+                            Message = "No eligible route for requested model",
+                            Type = "invalid_request_error",
+                            Param = "model",
+                            Code = "no_eligible_route"
+                        }
+                    }),
                     RouteResolutionReason.NoConfiguredRoute => StatusCode(StatusCodes.Status503ServiceUnavailable, new OpenAIErrorResponse
                     {
                         Error = new OpenAIError
