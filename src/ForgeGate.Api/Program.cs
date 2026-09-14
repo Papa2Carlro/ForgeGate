@@ -3,6 +3,7 @@ using ForgeGate.Application.Chat.Routing;
 using ForgeGate.Infrastructure.Providers.OpenAICompatible;
 using ForgeGate.Infrastructure.Routing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,17 +26,24 @@ builder.Services.AddScoped<IRouteEligibilityEvaluator, RouteOperationalEligibili
     new RouteOperationalEligibilityEvaluator(
         new HardRouteEligibilityEvaluator(),
         sp.GetRequiredService<IRouteHealthStateProvider>()));
-builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>();
-builder.Services.AddScoped<ChatExecutionService>();
+builder.Services.AddScoped<IRouteHealthRanker, RouteHealthRanker>();
+builder.Services.AddSingleton<IRouteCapacityCoordinator, InMemoryRouteCapacityCoordinator>();
+builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>(sp =>
+    new ConfiguredRouteResolver(
+        sp.GetRequiredService<IOptions<RoutingConfiguration>>(),
+        sp.GetRequiredService<IRouteEligibilityEvaluator>(),
+        sp.GetRequiredService<IRouteHealthRanker>()));
 
 var app = builder.Build();
 
-// Configure Swagger
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseAuthorization();
 
 // Map controllers
 app.MapControllers();

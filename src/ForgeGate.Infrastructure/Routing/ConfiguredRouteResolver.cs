@@ -10,11 +10,16 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
 {
     private readonly RoutingConfiguration _configuration;
     private readonly IRouteEligibilityEvaluator _eligibilityEvaluator;
+    private readonly IRouteHealthRanker _healthRanker;
 
-    public ConfiguredRouteResolver(IOptions<RoutingConfiguration> configuration, IRouteEligibilityEvaluator eligibilityEvaluator)
+    public ConfiguredRouteResolver(
+        IOptions<RoutingConfiguration> configuration,
+        IRouteEligibilityEvaluator eligibilityEvaluator,
+        IRouteHealthRanker healthRanker)
     {
         _configuration = configuration.Value ?? throw new ArgumentNullException(nameof(configuration));
         _eligibilityEvaluator = eligibilityEvaluator ?? throw new ArgumentNullException(nameof(eligibilityEvaluator));
+        _healthRanker = healthRanker ?? throw new ArgumentNullException(nameof(healthRanker));
     }
 
     public async Task<RouteResolutionOutcome> ResolveAsync(
@@ -61,10 +66,16 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
             .OrderBy(t => t == DeclaredQualityTier.Preferred ? 0 : t == DeclaredQualityTier.Acceptable ? 1 : 2)
             .First();
 
-        var selectedRoute = eligibleCandidates
+        var bestTierRoutes = eligibleCandidates
             .Where(c => c.QualityTier == bestTier)
             .Select(c => c.ModelRoute)
-            .First();
+            .ToList();
+
+        // Order routes within the best quality tier by health (Healthy > Unknown > Degraded)
+        var healthOrderedRoutes = _healthRanker.OrderByHealth(bestTierRoutes);
+
+        // Select the first route (best health, with configuration order as tie-break)
+        var selectedRoute = healthOrderedRoutes.First();
 
         return RouteResolutionOutcome.Success(selectedRoute);
     }

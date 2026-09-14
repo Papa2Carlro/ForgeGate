@@ -17,5 +17,6 @@ public enum ProviderFailureCategory
     ContextExceeded,
     InvalidRequest,
     MalformedResponse,
-    UnknownProviderFailure
+    UnknownProviderFailure,
+    ConcurrencyLimited
 }

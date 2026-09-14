@@ -28,6 +28,12 @@ public sealed class ConfiguredRoute
     /// Gets or sets the declared quality tier for this route.
     /// </summary>
     public DeclaredQualityTier QualityTier { get; set; } = DeclaredQualityTier.Acceptable;
+
+    /// <summary>
+    /// Gets or sets the maximum concurrent executions for this route.
+    /// null means unbounded; >= 1 is the maximum active provider executions.
+    /// </summary>
+    public int? MaxConcurrentExecutions { get; set; }
 }
 
 /// <summary>
