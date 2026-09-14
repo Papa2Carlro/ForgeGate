@@ -1,5 +1,6 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Application.Chat.Routing;
+using ForgeGate.Application.Chat.Routing.Health;
+using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.IntegrationTests;

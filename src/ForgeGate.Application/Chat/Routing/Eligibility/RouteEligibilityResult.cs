@@ -1,6 +1,6 @@
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Eligibility;
 
 public sealed record RouteEligibilityResult
 {

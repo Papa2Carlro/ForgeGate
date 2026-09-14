@@ -1,7 +1,11 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Application.Chat.Routing;
+using ForgeGate.Application.Chat.Routing.Resolution;
+using ForgeGate.Application.Chat.Routing.Health;
+using ForgeGate.Application.Chat.Routing.Capacity;
+using ForgeGate.Application.Chat.Routing.Eligibility;
 using ForgeGate.Domain.Providers;
 using ForgeGate.Infrastructure.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace ForgeGate.Application.Tests;
@@ -1421,35 +1425,9 @@ public class ChatExecutionServiceTests
     // === Slice 12: Capacity-Aware Routing with Read-Only Headroom ===
 
     [Fact]
-    public async Task Slice12_A_GetSnapshot_ReturnsCorrectState()
+    public async Task Slice12_A_UnboundedRouteSnapshot_IsAvailable()
     {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
-        var route = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test"),
-            LogicalModelId.From("model"),
-            ModelRouteId.From("test:model"),
-            "native",
-            enabled: true,
-            capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 5);
-
-        var snapshot = stateProvider.GetSnapshot(route);
-
-        Assert.NotNull(snapshot);
-        Assert.True(snapshot.IsBounded);
-        Assert.Equal(5, snapshot.MaxConcurrentExecutions);
-        Assert.Equal(0, snapshot.ActiveExecutions);
-        Assert.Equal(5, snapshot.AvailableSlots);
-        Assert.False(snapshot.IsAtCapacity);
-    }
-
-    [Fact]
-    public async Task Slice12_B_GetSnapshot_UnboundedRoute_ReturnsUnboundedState()
-    {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var route = ModelRoute.FromIdsWithOptions(
             ProviderId.From("test"),
             LogicalModelId.From("model"),
@@ -1460,20 +1438,19 @@ public class ChatExecutionServiceTests
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: null);
 
-        var snapshot = stateProvider.GetSnapshot(route);
+        var snapshot = coordinator.GetSnapshot(route);
 
-        Assert.NotNull(snapshot);
         Assert.False(snapshot.IsBounded);
         Assert.Null(snapshot.MaxConcurrentExecutions);
+        Assert.Equal(0, snapshot.ActiveExecutions);
         Assert.Null(snapshot.AvailableSlots);
         Assert.False(snapshot.IsAtCapacity);
     }
 
     [Fact]
-    public async Task Slice12_C_GetSnapshot_AtCapacity_ReturnsCorrectState()
+    public async Task Slice12_B_BoundedFreeRouteSnapshot_ReturnsCorrectState()
     {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var route = ModelRoute.FromIdsWithOptions(
             ProviderId.From("test"),
             LogicalModelId.From("model"),
@@ -1484,138 +1461,24 @@ public class ChatExecutionServiceTests
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 2);
 
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
+        await coordinator.TryAcquireAsync(route, CancellationToken.None);
 
-        var snapshot = stateProvider.GetSnapshot(route);
+        var snapshot = coordinator.GetSnapshot(route);
 
-        Assert.NotNull(snapshot);
-        Assert.Equal(2, snapshot.ActiveExecutions);
-        Assert.Equal(0, snapshot.AvailableSlots);
-        Assert.True(snapshot.IsAtCapacity);
+        Assert.True(snapshot.IsBounded);
+        Assert.Equal(2, snapshot.MaxConcurrentExecutions);
+        Assert.Equal(1, snapshot.ActiveExecutions);
+        Assert.Equal(1, snapshot.AvailableSlots);
+        Assert.False(snapshot.IsAtCapacity);
     }
 
     [Fact]
-    public async Task Slice12_D_GetSnapshot_ReleaseUpdatesCount()
-    {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
-        var route = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test"),
-            LogicalModelId.From("model"),
-            ModelRouteId.From("test:model"),
-            "native",
-            enabled: true,
-            capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 2);
-
-        var hold1 = await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        var hold2 = await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-
-        var snapshotBefore = stateProvider.GetSnapshot(route);
-        Assert.True(snapshotBefore.IsAtCapacity);
-
-        hold1!.Reservation!.Dispose();
-
-        var snapshotAfter = stateProvider.GetSnapshot(route);
-        Assert.False(snapshotAfter.IsAtCapacity);
-        Assert.Equal(1, snapshotAfter.AvailableSlots);
-    }
-
-    [Fact]
-    public async Task Slice12_E_Resolver_FiltersAtCapacityRoutes()
-    {
-        var route = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test"),
-            LogicalModelId.From("model"),
-            ModelRouteId.From("test:model"),
-            "native",
-            enabled: true,
-            capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 1);
-        
-        var config = new RoutingConfiguration
-        {
-            Routes = new List<ConfiguredRoute>
-            {
-                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = route }
-            }
-        };
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var resolver = new ConfiguredRouteResolver(
-            Options.Create(config),
-            new HardRouteEligibilityEvaluator(),
-            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
-            capacityCoordinator);
-
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-
-        var request = new CanonicalChatRequest
-        {
-            RequestedModel = "model",
-            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
-        };
-
-        var result = await resolver.ResolveAsync(request, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(RouteResolutionReason.NoCapacityAvailable, result.FailureValue!.Reason);
-    }
-
-    [Fact]
-    public async Task Slice12_F_Resolver_RejectsWhenAllAtCapacity()
-    {
-        var route = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test"),
-            LogicalModelId.From("model"),
-            ModelRouteId.From("test:model"),
-            "native",
-            enabled: true,
-            capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 1);
-        
-        var config = new RoutingConfiguration
-        {
-            Routes = new List<ConfiguredRoute>
-            {
-                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = route }
-            }
-        };
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var resolver = new ConfiguredRouteResolver(
-            Options.Create(config),
-            new HardRouteEligibilityEvaluator(),
-            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
-            capacityCoordinator);
-
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-
-        var request = new CanonicalChatRequest
-        {
-            RequestedModel = "model",
-            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
-        };
-
-        var result = await resolver.ResolveAsync(request, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(RouteResolutionReason.NoCapacityAvailable, result.FailureValue!.Reason);
-    }
-
-    [Fact]
-    public async Task Slice12_G_Resolver_RanksByHigherHeadroom()
+    public async Task Slice12_C_FullRouteFilteredWithinSameTier()
     {
         var routeA = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test-a"),
+            ProviderId.From("a"),
             LogicalModelId.From("model"),
-            ModelRouteId.From("test-a:model"),
+            ModelRouteId.From("a:model"),
             "native",
             enabled: true,
             capabilities: ModelCapability.None,
@@ -1623,9 +1486,118 @@ public class ChatExecutionServiceTests
             maxConcurrentExecutions: 1);
         
         var routeB = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test-b"),
+            ProviderId.From("b"),
             LogicalModelId.From("model"),
-            ModelRouteId.From("test-b:model"),
+            ModelRouteId.From("b:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeA },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("b", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_D_MoreHeadroomWins()
+    {
+        var routeA = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("a"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("a:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 2);
+        
+        var routeB = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("b"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("b:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 4);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeA },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        // Hold 1 on each route
+        await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        await coordinator.TryAcquireAsync(routeB, CancellationToken.None);
+
+        // A: limit=2, held=1 → AvailableSlots=1
+        // B: limit=4, held=1 → AvailableSlots=3
+        // B has more headroom, should be selected despite being second in config
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("b", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_F_EqualHeadroom_PreservesConfigOrder()
+    {
+        var routeA = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("a"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("a:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 2);
+        
+        var routeB = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("b"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("b:model"),
             "native",
             enabled: true,
             capabilities: ModelCapability.None,
@@ -1640,14 +1612,17 @@ public class ChatExecutionServiceTests
                 new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
             }
         };
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var resolver = new ConfiguredRouteResolver(
             Options.Create(config),
             new HardRouteEligibilityEvaluator(),
             new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
-            capacityCoordinator);
+            coordinator);
 
-        await capacityCoordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        await coordinator.TryAcquireAsync(routeB, CancellationToken.None);
+        await coordinator.TryAcquireAsync(routeB, CancellationToken.None);
+        await coordinator.TryAcquireAsync(routeB, CancellationToken.None);
 
         var request = new CanonicalChatRequest
         {
@@ -1658,12 +1633,11 @@ public class ChatExecutionServiceTests
         var result = await resolver.ResolveAsync(request, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Route);
-        Assert.Equal("test-b", result.Route!.ProviderId.Value);
+        Assert.Equal("a", result.Route!.ProviderId.Value);
     }
 
     [Fact]
-    public async Task Slice12_H_Resolver_UnboundedRoutePreferredOverBounded()
+    public async Task Slice12_E_UnboundedBeatsBounded()
     {
         var boundedRoute = ModelRoute.FromIdsWithOptions(
             ProviderId.From("bounded"),
@@ -1693,14 +1667,14 @@ public class ChatExecutionServiceTests
                 new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = unboundedRoute }
             }
         };
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var resolver = new ConfiguredRouteResolver(
             Options.Create(config),
             new HardRouteEligibilityEvaluator(),
             new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
-            capacityCoordinator);
+            coordinator);
 
-        await capacityCoordinator.TryAcquireAsync(boundedRoute, CancellationToken.None);
+        await coordinator.TryAcquireAsync(boundedRoute, CancellationToken.None);
 
         var request = new CanonicalChatRequest
         {
@@ -1711,77 +1685,26 @@ public class ChatExecutionServiceTests
         var result = await resolver.ResolveAsync(request, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Route);
         Assert.Equal("unbounded", result.Route!.ProviderId.Value);
     }
 
     [Fact]
-    public async Task Slice12_I_SnapshotImmutable_ReturnsNewInstanceEachTime()
+    public async Task Slice12_F_EqualHeadroomUsesConfigOrder()
     {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
-        var route = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test"),
+        var routeA = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("a"),
             LogicalModelId.From("model"),
-            ModelRouteId.From("test:model"),
+            ModelRouteId.From("a:model"),
             "native",
             enabled: true,
             capabilities: ModelCapability.None,
             qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 5);
-
-        var snapshot1 = stateProvider.GetSnapshot(route);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        var snapshot2 = stateProvider.GetSnapshot(route);
-
-        Assert.Equal(5, snapshot1.MaxConcurrentExecutions);
-        Assert.Equal(0, snapshot1.ActiveExecutions);
-        Assert.Equal(1, snapshot2.ActiveExecutions);
-        Assert.NotSame(snapshot1, snapshot2);
-    }
-
-    [Fact]
-    public async Task Slice12_J_SnapshotForKnownRoute_ReturnsState()
-    {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
-        var route = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("test"),
+            maxConcurrentExecutions: 2);
+        
+        var routeB = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("b"),
             LogicalModelId.From("model"),
-            ModelRouteId.From("test:model"),
-            "native",
-            enabled: true,
-            capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 5);
-
-        var snapshot = stateProvider.GetSnapshot(route);
-
-        Assert.NotNull(snapshot);
-        Assert.True(snapshot.IsBounded);
-        Assert.Equal(5, snapshot.MaxConcurrentExecutions);
-        Assert.Equal(0, snapshot.ActiveExecutions);
-        Assert.Equal(5, snapshot.AvailableSlots);
-        Assert.False(snapshot.IsAtCapacity);
-    }
-
-    [Fact]
-    public async Task Slice12_K_CapacityFilterAfterHealthOrdering()
-    {
-        var healthyRoute = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("healthy"),
-            LogicalModelId.From("model"),
-            ModelRouteId.From("healthy:model"),
-            "native",
-            enabled: true,
-            capabilities: ModelCapability.None,
-            qualityTier: DeclaredQualityTier.Preferred,
-            maxConcurrentExecutions: 1);
-
-        var degradedRoute = ModelRoute.FromIdsWithOptions(
-            ProviderId.From("degraded"),
-            LogicalModelId.From("model"),
-            ModelRouteId.From("degraded:model"),
+            ModelRouteId.From("b:model"),
             "native",
             enabled: true,
             capabilities: ModelCapability.None,
@@ -1792,21 +1715,16 @@ public class ChatExecutionServiceTests
         {
             Routes = new List<ConfiguredRoute>
             {
-                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = healthyRoute },
-                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = degradedRoute }
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeA },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
             }
         };
-        var healthState = new InMemoryRouteHealthStateProvider();
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var resolver = new ConfiguredRouteResolver(
             Options.Create(config),
             new HardRouteEligibilityEvaluator(),
-            new RouteHealthRanker(healthState),
-            capacityCoordinator);
-
-        await capacityCoordinator.TryAcquireAsync(healthyRoute, CancellationToken.None);
-        healthState.SetHealth(healthyRoute.ModelRouteId, RouteHealthStatus.Healthy);
-        healthState.SetHealth(degradedRoute.ModelRouteId, RouteHealthStatus.Degraded);
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
 
         var request = new CanonicalChatRequest
         {
@@ -1817,12 +1735,117 @@ public class ChatExecutionServiceTests
         var result = await resolver.ResolveAsync(request, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Route);
-        Assert.Equal("degraded", result.Route!.ProviderId.Value);
+        Assert.Equal("a", result.Route!.ProviderId.Value);
     }
 
     [Fact]
-    public async Task Slice12_L_FallbackToLowerQualityWhenHigherAtCapacity()
+    public async Task Slice12_G_HealthOutranksCapacity()
+    {
+        var healthState = new InMemoryRouteHealthStateProvider();
+        
+        var routeA = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("a"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("a:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 2);
+        
+        var routeB = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("b"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("b:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 11);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeA },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(healthState),
+            coordinator,
+            healthState);
+
+        healthState.SetHealth(routeA.ModelRouteId, RouteHealthStatus.Healthy);
+        healthState.SetHealth(routeB.ModelRouteId, RouteHealthStatus.Unknown);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("a", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_H_QualityOutranksCapacity()
+    {
+        var preferredRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("preferred"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("preferred:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 2);
+        
+        var acceptableRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("acceptable"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("acceptable:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Acceptable,
+            maxConcurrentExecutions: null);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = preferredRoute },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = acceptableRoute }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("preferred", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_I_FullPreferredDoesNotDowngradeToAcceptable()
     {
         var preferredRoute = ModelRoute.FromIdsWithOptions(
             ProviderId.From("preferred"),
@@ -1852,15 +1875,15 @@ public class ChatExecutionServiceTests
                 new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = acceptableRoute }
             }
         };
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var resolver = new ConfiguredRouteResolver(
             Options.Create(config),
             new HardRouteEligibilityEvaluator(),
             new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
-            capacityCoordinator);
+            coordinator);
 
-        await capacityCoordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
+        await coordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
+        await coordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
 
         var request = new CanonicalChatRequest
         {
@@ -1870,17 +1893,229 @@ public class ChatExecutionServiceTests
 
         var result = await resolver.ResolveAsync(request, CancellationToken.None);
 
-        // Preferred is at capacity (limit=1, held twice), so resolver should fall back to Acceptable
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Route);
-        Assert.Equal("acceptable", result.Route!.ProviderId.Value);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoCapacityAvailable, result.FailureValue!.Reason);
     }
 
     [Fact]
-    public async Task Slice12_M_MultipleAcquisitionsUpdateSnapshot()
+    public async Task Slice12_J_AllRoutesInSelectedTierFull()
     {
-        var capacityCoordinator = new InMemoryRouteCapacityCoordinator();
-        var stateProvider = capacityCoordinator;
+        var routeA = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("a"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("a:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+        
+        var routeB = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("b"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("b:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeA },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        await coordinator.TryAcquireAsync(routeB, CancellationToken.None);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoCapacityAvailable, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice12_K_NoCapacityAvailableDoesNotCallProvider()
+    {
+        var preferredRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("preferred"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("preferred:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+        
+        var acceptableRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("acceptable"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("acceptable:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Acceptable,
+            maxConcurrentExecutions: 5);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = preferredRoute },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = acceptableRoute }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        await coordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
+        await coordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoCapacityAvailable, result.FailureValue!.Reason);
+    }
+
+    [Fact]
+    public async Task Slice12_L_LowerTierCapacityIrrelevantWhenSelectedTierHasCapacity()
+    {
+        var preferredRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("preferred"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("preferred:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 2);
+        
+        var acceptableRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("acceptable"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("acceptable:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Acceptable,
+            maxConcurrentExecutions: null);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = preferredRoute },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = acceptableRoute }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("preferred", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_M_ReleaseAffectsNextDecision()
+    {
+        var routeA = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("a"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("a:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+        
+        var routeB = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("b"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("b:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeA },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = routeB }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result1 = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result1.IsSuccess);
+        // Route A is first in config, both have equal capacity, so A is selected
+        Assert.Equal("a", result1.Route!.ProviderId.Value);
+
+        // Now hold A's slot
+        var hold = await coordinator.TryAcquireAsync(routeA, CancellationToken.None);
+        hold!.Reservation!.Dispose();
+
+        // After releasing, A is available again, still first in config
+        var result2 = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(result2.IsSuccess);
+        Assert.Equal("a", result2.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_N_SnapshotReflectsLiveSharedState()
+    {
+        var coordinator = new InMemoryRouteCapacityCoordinator();
         var route = ModelRoute.FromIdsWithOptions(
             ProviderId.From("test"),
             LogicalModelId.From("model"),
@@ -1891,16 +2126,275 @@ public class ChatExecutionServiceTests
             qualityTier: DeclaredQualityTier.Preferred,
             maxConcurrentExecutions: 3);
 
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
-        await capacityCoordinator.TryAcquireAsync(route, CancellationToken.None);
+        var snapshot1 = coordinator.GetSnapshot(route);
+        Assert.Equal(0, snapshot1.ActiveExecutions);
 
-        var snapshot = stateProvider.GetSnapshot(route);
+        var hold = await coordinator.TryAcquireAsync(route, CancellationToken.None);
+        var snapshot2 = coordinator.GetSnapshot(route);
+        Assert.Equal(1, snapshot2.ActiveExecutions);
+        Assert.Equal(2, snapshot2.AvailableSlots);
 
-        Assert.NotNull(snapshot);
-        Assert.Equal(3, snapshot.ActiveExecutions);
-        Assert.Equal(0, snapshot.AvailableSlots);
-        Assert.True(snapshot.IsAtCapacity);
+        hold!.Reservation!.Dispose();
+        var snapshot3 = coordinator.GetSnapshot(route);
+        Assert.Equal(0, snapshot3.ActiveExecutions);
+        Assert.Equal(3, snapshot3.AvailableSlots);
+    }
+
+    [Fact]
+    public async Task Slice12_O_SelectionExecutionRaceSafe()
+    {
+        var route = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("test"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("test:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = route }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+        var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "ok" });
+        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var resolveResult = await resolver.ResolveAsync(request, CancellationToken.None);
+        Assert.True(resolveResult.IsSuccess);
+
+        // Simulate race: acquire the route's final slot before execution
+        await coordinator.TryAcquireAsync(route, CancellationToken.None);
+
+        var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
+        Assert.False(outcome.IsSuccess);
+        Assert.Equal(ProviderFailureCategory.ConcurrencyLimited, outcome.FailureValue!.Category);
+        Assert.Empty(mockProvider.CapturedRequests);
+    }
+
+    [Fact]
+    public async Task Slice12_P_ResolverNeverAcquiresCapacity()
+    {
+        var route = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("test"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("test:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = route }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        await resolver.ResolveAsync(request, CancellationToken.None);
+        await resolver.ResolveAsync(request, CancellationToken.None);
+        await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.Equal(0, coordinator.GetActiveCount(route.ModelRouteId));
+    }
+
+    [Fact]
+    public async Task Slice12_Q_HardEligibilityPrecedesCapacity()
+    {
+        var disabledRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("disabled"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("disabled:model"),
+            "native",
+            enabled: false,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 100);
+        
+        var enabledRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("enabled"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("enabled:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = disabledRoute },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = enabledRoute }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("enabled", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_R_ToolCapabilityPrecedesCapacity()
+    {
+        var noToolRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("notool"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("notool:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 100);
+        
+        var toolRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("tool"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("tool:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.Tools,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = noToolRoute },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = toolRoute }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } },
+            ToolRequirement = ToolRequirement.Required
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("tool", result.Route!.ProviderId.Value);
+    }
+
+    [Fact]
+    public async Task Slice12_S_DIReadAndAcquireShareSameCoordinatorInstance()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IRouteCapacityCoordinator, InMemoryRouteCapacityCoordinator>();
+        services.AddSingleton<IRouteCapacityStateProvider>(sp => sp.GetRequiredService<IRouteCapacityCoordinator>() as IRouteCapacityStateProvider 
+            ?? throw new InvalidOperationException("Coordinator does not implement state provider"));
+        
+        var provider = services.BuildServiceProvider();
+        var coordinator = provider.GetRequiredService<IRouteCapacityCoordinator>();
+        var stateProvider = provider.GetRequiredService<IRouteCapacityStateProvider>();
+
+        Assert.Same(coordinator, stateProvider);
+    }
+
+    [Fact]
+    public async Task Slice12_T_NoCapacityAvailableHasControlledApiResponse()
+    {
+        var preferredRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("preferred"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("preferred:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Preferred,
+            maxConcurrentExecutions: 1);
+        
+        var acceptableRoute = ModelRoute.FromIdsWithOptions(
+            ProviderId.From("acceptable"),
+            LogicalModelId.From("model"),
+            ModelRouteId.From("acceptable:model"),
+            "native",
+            enabled: true,
+            capabilities: ModelCapability.None,
+            qualityTier: DeclaredQualityTier.Acceptable,
+            maxConcurrentExecutions: 5);
+
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Preferred, ModelRoute = preferredRoute },
+                new() { RequestedModelAlias = "model", Enabled = true, QualityTier = DeclaredQualityTier.Acceptable, ModelRoute = acceptableRoute }
+            }
+        };
+        var coordinator = new InMemoryRouteCapacityCoordinator();
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(new InMemoryRouteHealthStateProvider()),
+            coordinator);
+
+        await coordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
+        await coordinator.TryAcquireAsync(preferredRoute, CancellationToken.None);
+
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "model",
+            Messages = new List<CanonicalChatMessage> { new() { Role = "user", Content = "hi" } }
+        };
+
+        var result = await resolver.ResolveAsync(request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(RouteResolutionReason.NoCapacityAvailable, result.FailureValue!.Reason);
+        Assert.NotNull(result.FailureValue.Details);
+        Assert.Contains("model", result.FailureValue.Details);
     }
 }

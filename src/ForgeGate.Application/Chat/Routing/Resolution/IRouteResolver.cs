@@ -1,6 +1,6 @@
 using ForgeGate.Application.Chat;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Resolution;
 
 /// <summary>
 /// Application-owned route resolution contract.

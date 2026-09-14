@@ -1,7 +1,7 @@
 using ForgeGate.Application.Chat;
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Health;
 
 /// <summary>
 /// Application-owned health ranker that orders routes by health within a quality tier.

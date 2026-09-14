@@ -1,6 +1,6 @@
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Resolution;
 
 /// <summary>
 /// Application-owned route failure model for deterministic routing slice.

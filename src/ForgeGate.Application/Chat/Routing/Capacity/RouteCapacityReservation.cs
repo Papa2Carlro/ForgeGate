@@ -1,6 +1,6 @@
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Capacity;
 
 /// <summary>
 /// Represents ownership of one active execution slot for a route.

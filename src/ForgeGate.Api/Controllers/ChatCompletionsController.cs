@@ -1,5 +1,5 @@
 using ForgeGate.Application.Chat;
-using ForgeGate.Application.Chat.Routing;
+using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Domain.Providers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -105,7 +105,7 @@ public sealed class ChatCompletionsController : ControllerBase
 
             // Resolve route using application-owned route resolver
             var routeResolutionOutcome = await _routeResolver.ResolveAsync(canonicalRequest, cancellationToken);
-            
+
             // Handle route resolution failures
             if (!routeResolutionOutcome.IsSuccess)
             {

@@ -1,6 +1,6 @@
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Health;
 
 /// <summary>
 /// Application-owned contract for ordering routes by health within a single quality tier.

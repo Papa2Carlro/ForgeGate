@@ -1,7 +1,7 @@
 using ForgeGate.Application.Chat;
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Eligibility;
 
 public sealed class HardRouteEligibilityEvaluator : IRouteEligibilityEvaluator
 {

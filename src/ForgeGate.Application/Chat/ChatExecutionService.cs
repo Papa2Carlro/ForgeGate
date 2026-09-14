@@ -1,4 +1,5 @@
-using ForgeGate.Application.Chat.Routing;
+using ForgeGate.Application.Chat.Routing.Health;
+using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Chat;
@@ -39,10 +40,10 @@ public sealed class ChatExecutionService
         // Application layer validation - basic null checks
         if (request == null)
             throw new ArgumentNullException(nameof(request));
-        
+
         if (route == null)
             throw new ArgumentNullException(nameof(route));
-        
+
         if (request.Messages == null || request.Messages.Count == 0)
             throw new ArgumentException("Messages cannot be null or empty", nameof(request.Messages));
 

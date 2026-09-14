@@ -1,6 +1,6 @@
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Capacity;
 
 /// <summary>
 /// In-memory thread-safe capacity coordinator keyed by ModelRouteId.

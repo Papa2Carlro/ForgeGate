@@ -1,6 +1,6 @@
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Capacity;
 
 /// <summary>
 /// Application-owned read-only contract for observing route capacity state.

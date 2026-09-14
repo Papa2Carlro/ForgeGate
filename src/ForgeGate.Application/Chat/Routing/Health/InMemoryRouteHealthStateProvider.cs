@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Health;
 
 public sealed class InMemoryRouteHealthStateProvider : IRouteHealthStateProvider
 {

@@ -1,7 +1,8 @@
 using ForgeGate.Application.Chat;
+using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Domain.Providers;
 
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Eligibility;
 
 public sealed class RouteOperationalEligibilityEvaluator : IRouteEligibilityEvaluator
 {

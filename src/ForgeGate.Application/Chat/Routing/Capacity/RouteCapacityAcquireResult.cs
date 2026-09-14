@@ -1,4 +1,4 @@
-namespace ForgeGate.Application.Chat.Routing;
+namespace ForgeGate.Application.Chat.Routing.Capacity;
 
 /// <summary>
 /// Result of attempting to acquire route capacity.
