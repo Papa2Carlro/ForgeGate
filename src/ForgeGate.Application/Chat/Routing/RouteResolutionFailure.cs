@@ -56,6 +56,13 @@ public sealed record RouteResolutionFailure
             RouteResolutionReason.NoEligibleRoute,
             $"No eligible route for requested model '{requestedModel}'");
     }
+
+    public static RouteResolutionFailure NoCapacityAvailable(string requestedModel)
+    {
+        return new RouteResolutionFailure(
+            RouteResolutionReason.NoCapacityAvailable,
+            $"No capacity available for requested model '{requestedModel}'");
+    }
 }
 
 /// <summary>
@@ -72,5 +79,14 @@ public enum RouteResolutionReason
     /// No routes are configured in the system.
     /// </summary>
     NoConfiguredRoute,
-    NoEligibleRoute
+
+    /// <summary>
+    /// No eligible route after hard/operational eligibility filtering.
+    /// </summary>
+    NoEligibleRoute,
+
+    /// <summary>
+    /// Best quality tier exists but all candidates are at capacity.
+    /// </summary>
+    NoCapacityAvailable
 }

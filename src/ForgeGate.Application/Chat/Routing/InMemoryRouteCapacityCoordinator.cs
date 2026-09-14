@@ -6,8 +6,10 @@ namespace ForgeGate.Application.Chat.Routing;
 /// In-memory thread-safe capacity coordinator keyed by ModelRouteId.
 /// Uses SemaphoreSlim per bounded route for atomic acquisition.
 /// Unbounded routes (MaxConcurrentExecutions == null) always acquire successfully.
+/// Implements both IRouteCapacityCoordinator and IRouteCapacityStateProvider
+/// because they share the same underlying state.
 /// </summary>
-public sealed class InMemoryRouteCapacityCoordinator : IRouteCapacityCoordinator
+public sealed class InMemoryRouteCapacityCoordinator : IRouteCapacityCoordinator, IRouteCapacityStateProvider
 {
     private readonly object _lock = new();
     private readonly Dictionary<ModelRouteId, SemaphoreSlim> _semaphores = new();
@@ -46,6 +48,34 @@ public sealed class InMemoryRouteCapacityCoordinator : IRouteCapacityCoordinator
         // Create reservation that releases the semaphore
         var reservation = new RouteCapacityReservation(() => semaphore.Release());
         return RouteCapacityAcquireResult.Acquired(reservation);
+    }
+
+    /// <summary>
+    /// Gets a read-only snapshot of capacity state for the given route.
+    /// </summary>
+    public RouteCapacitySnapshot GetSnapshot(ModelRoute route)
+    {
+        if (route == null)
+            throw new ArgumentNullException(nameof(route));
+
+        int? configuredLimit = route.MaxConcurrentExecutions;
+
+        if (!configuredLimit.HasValue || configuredLimit.Value <= 0)
+        {
+            // Unbounded
+            return new RouteCapacitySnapshot(isBounded: false, maxConcurrentExecutions: null, activeExecutions: 0);
+        }
+
+        int active;
+        lock (_lock)
+        {
+            if (!_semaphores.TryGetValue(route.ModelRouteId, out var semaphore))
+                active = 0;
+            else
+                active = configuredLimit.Value - semaphore.CurrentCount;
+        }
+
+        return new RouteCapacitySnapshot(isBounded: true, maxConcurrentExecutions: configuredLimit, activeExecutions: active);
     }
 
     private SemaphoreSlim GetOrCreateSemaphore(ModelRouteId routeId, int limit)

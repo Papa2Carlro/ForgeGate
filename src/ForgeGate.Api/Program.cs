@@ -28,11 +28,13 @@ builder.Services.AddScoped<IRouteEligibilityEvaluator, RouteOperationalEligibili
         sp.GetRequiredService<IRouteHealthStateProvider>()));
 builder.Services.AddScoped<IRouteHealthRanker, RouteHealthRanker>();
 builder.Services.AddSingleton<IRouteCapacityCoordinator, InMemoryRouteCapacityCoordinator>();
+builder.Services.AddSingleton<IRouteCapacityStateProvider>(sp => (IRouteCapacityStateProvider)sp.GetRequiredService<IRouteCapacityCoordinator>());
 builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>(sp =>
     new ConfiguredRouteResolver(
         sp.GetRequiredService<IOptions<RoutingConfiguration>>(),
         sp.GetRequiredService<IRouteEligibilityEvaluator>(),
-        sp.GetRequiredService<IRouteHealthRanker>()));
+        sp.GetRequiredService<IRouteHealthRanker>(),
+        sp.GetRequiredService<IRouteCapacityStateProvider>()));
 
 var app = builder.Build();
 

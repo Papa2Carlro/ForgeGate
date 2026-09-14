@@ -11,15 +11,18 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
     private readonly RoutingConfiguration _configuration;
     private readonly IRouteEligibilityEvaluator _eligibilityEvaluator;
     private readonly IRouteHealthRanker _healthRanker;
+    private readonly IRouteCapacityStateProvider _capacityStateProvider;
 
     public ConfiguredRouteResolver(
         IOptions<RoutingConfiguration> configuration,
         IRouteEligibilityEvaluator eligibilityEvaluator,
-        IRouteHealthRanker healthRanker)
+        IRouteHealthRanker healthRanker,
+        IRouteCapacityStateProvider capacityStateProvider)
     {
         _configuration = configuration.Value ?? throw new ArgumentNullException(nameof(configuration));
         _eligibilityEvaluator = eligibilityEvaluator ?? throw new ArgumentNullException(nameof(eligibilityEvaluator));
         _healthRanker = healthRanker ?? throw new ArgumentNullException(nameof(healthRanker));
+        _capacityStateProvider = capacityStateProvider ?? throw new ArgumentNullException(nameof(capacityStateProvider));
     }
 
     public async Task<RouteResolutionOutcome> ResolveAsync(
@@ -66,23 +69,47 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
             return RouteResolutionOutcome.Failure(
                 RouteResolutionFailure.NoEligibleRoute(request.RequestedModel));
 
-        // Best available tier selection: Preferred > Acceptable > Fallback
-        var bestTier = eligible
-            .Select(e => e.candidate.QualityTier)
-            .OrderBy(t => t == DeclaredQualityTier.Preferred ? 0 : t == DeclaredQualityTier.Acceptable ? 1 : 2)
-            .First();
+        // Iterate through quality tiers from best to worst
+        var tierOrder = new[] { DeclaredQualityTier.Preferred, DeclaredQualityTier.Acceptable, DeclaredQualityTier.Fallback };
+        
+        foreach (var tier in tierOrder)
+        {
+            var tierRoutes = eligible
+                .Where(e => e.candidate.QualityTier == tier)
+                .Select(e => e.effectiveRoute)
+                .ToList();
 
-        var bestTierRoutes = eligible
-            .Where(e => e.candidate.QualityTier == bestTier)
-            .Select(e => e.effectiveRoute)
-            .ToList();
+            if (!tierRoutes.Any())
+                continue;
 
-        // Order routes within the best quality tier by health (Healthy > Unknown > Degraded)
-        var healthOrderedRoutes = _healthRanker.OrderByHealth(bestTierRoutes);
+            // Order routes within this tier by health (Healthy > Unknown > Degraded)
+            var healthOrderedRoutes = _healthRanker.OrderByHealth(tierRoutes);
 
-        // Select the first route (best health, with configuration order as tie-break)
-        var selectedRoute = healthOrderedRoutes.First();
+            // Filter out routes that are at capacity
+            var availableRoutes = new List<ModelRoute>();
+            foreach (var route in healthOrderedRoutes)
+            {
+                var snapshot = _capacityStateProvider.GetSnapshot(route);
+                if (!snapshot.IsAtCapacity)
+                    availableRoutes.Add(route);
+            }
 
-        return RouteResolutionOutcome.Success(selectedRoute);
+            if (!availableRoutes.Any())
+                continue;
+
+            // Order available routes by capacity headroom (more headroom first)
+            var orderedWithCapacity = availableRoutes
+                .Select(route => (route, snapshot: _capacityStateProvider.GetSnapshot(route)))
+                .OrderByDescending(item => item.snapshot.IsBounded ? 0 : 1)
+                .ThenByDescending(item => item.snapshot.AvailableSlots ?? int.MaxValue)
+                .Select(item => item.route)
+                .ToList();
+
+            return RouteResolutionOutcome.Success(orderedWithCapacity.First());
+        }
+
+        // No routes available at any tier
+        return RouteResolutionOutcome.Failure(
+            RouteResolutionFailure.NoCapacityAvailable(request.RequestedModel));
     }
 }
