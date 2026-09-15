@@ -20,7 +20,7 @@ public class RouteCapacityAcquisitionTests
             ModelRouteId.From("r1"));
         var coordinator = new InMemoryRouteCapacityCoordinator();
         var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "ok" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
 
         var request = new CanonicalChatRequest
         {
@@ -47,7 +47,7 @@ public class RouteCapacityAcquisitionTests
             maxConcurrentExecutions: 1);
         var coordinator = new InMemoryRouteCapacityCoordinator();
         var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "ok" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
 
         var request = new CanonicalChatRequest
         {
@@ -75,7 +75,7 @@ public class RouteCapacityAcquisitionTests
             maxConcurrentExecutions: 1);
         var coordinator = new InMemoryRouteCapacityCoordinator();
         var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "ok" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()), coordinator);
 
         var request = new CanonicalChatRequest
         {

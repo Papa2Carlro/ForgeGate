@@ -1,5 +1,6 @@
 using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Application.Chat.Routing.Capacity;
+using ForgeGate.Application.Chat.Streaming;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Chat;
@@ -11,15 +12,18 @@ namespace ForgeGate.Application.Chat;
 public sealed class ChatExecutionService
 {
     private readonly IChatCompletionProvider _provider;
+    private readonly IStreamingChatCompletionProvider _streamingProvider;
     private readonly IRouteHealthFeedback _healthFeedback;
     private readonly IRouteCapacityCoordinator? _capacityCoordinator;
 
     public ChatExecutionService(
         IChatCompletionProvider provider,
+        IStreamingChatCompletionProvider streamingProvider,
         IRouteHealthFeedback healthFeedback,
         IRouteCapacityCoordinator? capacityCoordinator = null)
     {
         _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        _streamingProvider = streamingProvider ?? throw new ArgumentNullException(nameof(streamingProvider));
         _healthFeedback = healthFeedback ?? throw new ArgumentNullException(nameof(healthFeedback));
         _capacityCoordinator = capacityCoordinator;
     }
@@ -85,6 +89,84 @@ public sealed class ChatExecutionService
         finally
         {
             // Always release reservation if acquired
+            reservation?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Executes a streaming chat completion request through the provider with explicit route identity.
+    /// Buffers chunks in pre-commit phase; releases capacity on all completion paths.
+    /// </summary>
+    public async Task<StreamingExecutionOutcome> ExecuteStreamingAsync(
+        StreamingChatRequest request,
+        ModelRoute route,
+        StreamingBuffer buffer,
+        CancellationToken cancellationToken)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        if (route == null)
+            throw new ArgumentNullException(nameof(route));
+
+        if (buffer == null)
+            throw new ArgumentNullException(nameof(buffer));
+
+        // Validate underlying request
+        if (request.BaseRequest.Messages == null || request.BaseRequest.Messages.Count == 0)
+            throw new ArgumentException("Messages cannot be null or empty", nameof(request.BaseRequest.Messages));
+
+        // Check cancellation first
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Try to acquire capacity reservation
+        RouteCapacityReservation? reservation = null;
+        if (_capacityCoordinator != null)
+        {
+            var capacityResult = await _capacityCoordinator.TryAcquireAsync(route, cancellationToken);
+            if (capacityResult == null || capacityResult.Status == RouteCapacityAcquireStatus.AtCapacity)
+            {
+                return StreamingExecutionOutcome.Failure(new ProviderFailure
+                {
+                    Category = ProviderFailureCategory.ConcurrencyLimited,
+                    Retryability = ProviderFailureRetryability.NotRetryable,
+                    Scope = ProviderFailureScope.ModelRoute,
+                    SanitizedUpstreamMessage = "Route capacity limit reached"
+                });
+            }
+            reservation = capacityResult.Reservation;
+        }
+
+        try
+        {
+            // Check cancellation before provider call
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Delegate to streaming provider
+            var executionOutcome = await _streamingProvider.ExecuteStreamingAsync(route, request, buffer, cancellationToken);
+
+            if (executionOutcome.IsSuccess)
+            {
+                // Passive health feedback for successful streaming execution
+                _healthFeedback.RecordSuccess(route);
+                return executionOutcome;
+            }
+
+            // Propagate failure with health feedback
+            if (executionOutcome.FailureValue != null)
+                _healthFeedback.RecordFailure(route, executionOutcome.FailureValue);
+            return executionOutcome;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            throw;
+        }
+        finally
+        {
             reservation?.Dispose();
         }
     }

@@ -30,7 +30,7 @@ public class RouteHealthFeedbackTests
         };
         var healthProvider = new InMemoryRouteHealthStateProvider();
         var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "Hi" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -58,7 +58,7 @@ public class RouteHealthFeedbackTests
         // Start with degraded health
         healthProvider.SetHealth(route.ModelRouteId, RouteHealthStatus.Degraded);
         var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "Hi" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -91,7 +91,7 @@ public class RouteHealthFeedbackTests
                 Scope = ProviderFailureScope.ModelRoute
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -124,7 +124,7 @@ public class RouteHealthFeedbackTests
                 Scope = ProviderFailureScope.ModelRoute
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -160,7 +160,7 @@ public class RouteHealthFeedbackTests
                 SanitizedUpstreamMessage = "Invalid response format"
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -193,7 +193,7 @@ public class RouteHealthFeedbackTests
                 Scope = ProviderFailureScope.ModelRoute
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -228,7 +228,7 @@ public class RouteHealthFeedbackTests
                 Scope = ProviderFailureScope.ModelRoute
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -264,7 +264,7 @@ public class RouteHealthFeedbackTests
                 RetryAfter = TimeSpan.FromSeconds(30)
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -301,7 +301,7 @@ public class RouteHealthFeedbackTests
                 UpstreamCode = "invalid_request"
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -336,7 +336,7 @@ public class RouteHealthFeedbackTests
                 Scope = ProviderFailureScope.ModelRoute
             }
         );
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -365,7 +365,7 @@ public class RouteHealthFeedbackTests
         healthProvider.SetHealth(route.ModelRouteId, RouteHealthStatus.Healthy);
 
         var cancellingProvider = new FakeCancellingProvider();
-        var service = new ChatExecutionService(cancellingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(cancellingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var exception = await Assert.ThrowsAsync<OperationCanceledException>(
@@ -400,7 +400,7 @@ public class RouteHealthFeedbackTests
         };
         var healthProvider = new InMemoryRouteHealthStateProvider();
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(expectedFailure);
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -434,7 +434,7 @@ public class RouteHealthFeedbackTests
         var expectedResponse = new CanonicalChatResponse { Content = "Hello world" };
         var healthProvider = new InMemoryRouteHealthStateProvider();
         var mockProvider = new FakeChatCompletionProvider(expectedResponse);
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -481,7 +481,7 @@ public class RouteHealthFeedbackTests
         healthProvider.SetHealth(acceptableRoute.ModelRouteId, RouteHealthStatus.Healthy);
 
         var mockProvider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "Hi" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(healthProvider));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
 
         var resolver = new ConfiguredRouteResolver(
             Microsoft.Extensions.Options.Options.Create(new RoutingConfiguration
@@ -517,7 +517,7 @@ public class RouteHealthFeedbackTests
                 Scope = ProviderFailureScope.ModelRoute
             }
         );
-        var serviceWithFailingProvider = new ChatExecutionService(failingProvider, new RouteHealthFeedback(healthProvider));
+        var serviceWithFailingProvider = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(healthProvider));
         var outcome = await serviceWithFailingProvider.ExecuteAsync(request, preferredRoute, CancellationToken.None);
 
         // Then - Preferred route should be degraded but still selected due to higher quality tier

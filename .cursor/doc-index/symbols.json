@@ -1,1 +1,190 @@
-{}
+{
+  "I18nProvider": [
+    {
+      "path": "0001-view-scoped-zustand-hybrid.md",
+      "heading": "Decision",
+      "start_line": 15,
+      "snippet": "## Decision Use a **hybrid**: 1. **View UI / filters / tabs** shared by siblings — view-scoped **Zustand** store created with a **factory** (`createXStore()`), held in a React **Pr"
+    }
+  ],
+  "PascalCase": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "7. Файли / іменування",
+      "start_line": 161,
+      "snippet": "## 7. Файли / іменування | Що | Як | | ----------------- | ------------------------------------------ | | Компонент / папка | `PascalCase` | | Хуки | `useSomething.ts` | | Утиліти "
+    }
+  ],
+  "Features": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "Screens": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "ProductStage": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "ControlledWorkflow": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "DownloadBand": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "DownloadCtas": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "Lightbox": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "WhatsNew": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "SiteFooter": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "Analytics": [
+    {
+      "path": "frontend-code-style.md",
+      "heading": "9. Чекліст міграції (сайт)",
+      "start_line": 182,
+      "snippet": "## 9. Чекліст міграції (сайт) - [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`). - [x] Завести `src/styles/abstracts` (аліаси на C"
+    }
+  ],
+  "NoCapacityAvailable": [
+    {
+      "path": "slices/slice-12-certification-v2.md",
+      "heading": "Routing Pipeline",
+      "start_line": 20,
+      "snippet": "### Routing Pipeline ``` candidate discovery → hard eligibility (enabled, tool capability) → operational health eligibility → select BEST AVAILABLE DECLARED QUALITY TIER (NO fallba"
+    }
+  ],
+  "RouteCapacitySnapshot": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "New Types",
+      "start_line": 20,
+      "snippet": "### New Types | Type | Location | Purpose | |------|----------|---------| | `RouteCapacitySnapshot` | `src/ForgeGate.Application/Chat/Routing/RouteCapacitySnapshot.cs` | Immutable "
+    }
+  ],
+  "IRouteCapacityStateProvider": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "New Types",
+      "start_line": 20,
+      "snippet": "### New Types | Type | Location | Purpose | |------|----------|---------| | `RouteCapacitySnapshot` | `src/ForgeGate.Application/Chat/Routing/RouteCapacitySnapshot.cs` | Immutable "
+    },
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Modified Types",
+      "start_line": 27,
+      "snippet": "### Modified Types | Type | Changes | |------|---------| | `InMemoryRouteCapacityCoordinator` | Now implements both `IRouteCapacityCoordinator` and `IRouteCapacityStateProvider` | "
+    }
+  ],
+  "InMemoryRouteCapacityCoordinator": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Modified Types",
+      "start_line": 27,
+      "snippet": "### Modified Types | Type | Changes | |------|---------| | `InMemoryRouteCapacityCoordinator` | Now implements both `IRouteCapacityCoordinator` and `IRouteCapacityStateProvider` | "
+    },
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Breaking Changes",
+      "start_line": 122,
+      "snippet": "## Breaking Changes **None.** All changes are additive: - New interfaces don't break existing implementations - `InMemoryRouteCapacityCoordinator` implements additional interface ("
+    }
+  ],
+  "IRouteCapacityCoordinator": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Modified Types",
+      "start_line": 27,
+      "snippet": "### Modified Types | Type | Changes | |------|---------| | `InMemoryRouteCapacityCoordinator` | Now implements both `IRouteCapacityCoordinator` and `IRouteCapacityStateProvider` | "
+    }
+  ],
+  "RouteResolutionFailure": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Modified Types",
+      "start_line": 27,
+      "snippet": "### Modified Types | Type | Changes | |------|---------| | `InMemoryRouteCapacityCoordinator` | Now implements both `IRouteCapacityCoordinator` and `IRouteCapacityStateProvider` | "
+    }
+  ],
+  "ConfiguredRouteResolver": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Modified Types",
+      "start_line": 27,
+      "snippet": "### Modified Types | Type | Changes | |------|---------| | `InMemoryRouteCapacityCoordinator` | Now implements both `IRouteCapacityCoordinator` and `IRouteCapacityStateProvider` | "
+    }
+  ],
+  "AvailableSlots": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "ConfiguredRouteResolver Pipeline",
+      "start_line": 61,
+      "snippet": "### ConfiguredRouteResolver Pipeline New pipeline order: 1. Candidates → eligibility → quality tier → health order 2. **Capacity filter** (remove routes where `snapshot.IsAtCapacit"
+    }
+  ],
+  "RouteResolutionOutcome": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Breaking Changes",
+      "start_line": 122,
+      "snippet": "## Breaking Changes **None.** All changes are additive: - New interfaces don't break existing implementations - `InMemoryRouteCapacityCoordinator` implements additional interface ("
+    }
+  ],
+  "FailureValue": [
+    {
+      "path": "slices/slice-12-certification.md",
+      "heading": "Breaking Changes",
+      "start_line": 122,
+      "snippet": "## Breaking Changes **None.** All changes are additive: - New interfaces don't break existing implementations - `InMemoryRouteCapacityCoordinator` implements additional interface ("
+    }
+  ]
+}

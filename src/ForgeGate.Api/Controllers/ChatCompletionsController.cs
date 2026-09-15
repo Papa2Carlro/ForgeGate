@@ -1,6 +1,8 @@
+using System.Text;
 using ForgeGate.Application.Chat;
 using ForgeGate.Application.Chat.Execution;
 using ForgeGate.Application.Chat.Routing.Resolution;
+using ForgeGate.Application.Chat.Streaming;
 using ForgeGate.Domain.Providers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +13,14 @@ namespace ForgeGate.Api.Controllers;
 public sealed class ChatCompletionsController : ControllerBase
 {
     private readonly IChatCompletionOrchestrator _orchestrator;
+    private readonly IStreamingChatCompletionOrchestrator _streamingOrchestrator;
 
-    public ChatCompletionsController(IChatCompletionOrchestrator orchestrator)
+    public ChatCompletionsController(
+        IChatCompletionOrchestrator orchestrator,
+        IStreamingChatCompletionOrchestrator streamingOrchestrator)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
+        _streamingOrchestrator = streamingOrchestrator ?? throw new ArgumentNullException(nameof(streamingOrchestrator));
     }
 
     /// <summary>
@@ -100,7 +106,13 @@ public sealed class ChatCompletionsController : ControllerBase
             // Map API request to canonical model
             var canonicalRequest = MapToCanonical(request);
 
-            // Execute through orchestrator (includes routing + failover)
+            // Branch on stream flag
+            if (request.Stream == true)
+            {
+                return await ExecuteStreamingAsync(canonicalRequest, cancellationToken);
+            }
+
+            // Execute through non-streaming orchestrator (includes routing + failover)
             var outcome = await _orchestrator.ExecuteAsync(canonicalRequest, cancellationToken);
 
             // Map outcome to API response
@@ -168,6 +180,97 @@ public sealed class ChatCompletionsController : ControllerBase
                 }
             });
         }
+    }
+
+    /// <summary>
+    /// Executes streaming chat completion through the streaming orchestrator and emits SSE response.
+    /// </summary>
+    private async Task<IActionResult> ExecuteStreamingAsync(CanonicalChatRequest canonicalRequest, CancellationToken cancellationToken)
+    {
+        var buffer = new StreamingBuffer();
+        var streamingRequest = new StreamingChatRequest
+        {
+            BaseRequest = canonicalRequest,
+            Stream = true
+        };
+
+        Response.ContentType = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+
+        try
+        {
+            var outcome = await _streamingOrchestrator.ExecuteStreamingAsync(
+                streamingRequest,
+                buffer,
+                cancellationToken);
+
+            if (!outcome.IsSuccess)
+            {
+                var failure = outcome.FailureValue!;
+                int statusCode = MapFailureToStatusCode(failure);
+                string errorType = MapFailureToErrorType(failure.Category);
+                string errorCode = MapFailureToErrorCode(failure.Category);
+
+                return StatusCode(statusCode, new OpenAIErrorResponse
+                {
+                    Error = new OpenAIError
+                    {
+                        Message = failure.SanitizedUpstreamMessage ?? "Streaming provider error",
+                        Type = errorType,
+                        Param = null,
+                        Code = errorCode
+                    }
+                });
+            }
+
+            // Emit SSE response with buffered chunks
+            if (outcome.SelectedRoute != null)
+            {
+                var model = outcome.SelectedRoute.LogicalModelId.Value;
+                long created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                string id = Guid.NewGuid().ToString("N");
+
+                foreach (var chunk in outcome.BufferedChunks)
+                {
+                    var sseEvent = $"id: {Guid.NewGuid():N}\nevent: message\ndata: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"{model}\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{EscapeSseData(chunk)}\"}}}}]}}\n\n";
+                    await Response.WriteAsync(sseEvent, System.Text.Encoding.UTF8, cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+
+                // Send final done event
+                var finalEvent = $"id: {Guid.NewGuid():N}\nevent: message\ndata: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"{model}\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}],\"usage\":null}}\n\n";
+                await Response.WriteAsync(finalEvent, System.Text.Encoding.UTF8, cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            return Ok();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new OpenAIErrorResponse
+            {
+                Error = new OpenAIError
+                {
+                    Message = "Internal server error",
+                    Type = "api_error",
+                    Param = null,
+                    Code = null
+                }
+            });
+        }
+    }
+
+    private static string EscapeSseData(string data)
+    {
+        return data.Replace("\\", "\\\\")
+                    .Replace("\n", "\\n")
+                    .Replace("\r", "\\r")
+                    .Replace("\"", "\\\"");
     }
 
     private static CanonicalChatRequest MapToCanonical(OpenAIChatCompletionRequest request)

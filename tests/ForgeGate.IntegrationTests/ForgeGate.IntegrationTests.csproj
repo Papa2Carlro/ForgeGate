@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\ForgeGate.Application\ForgeGate.Application.csproj" />
     <ProjectReference Include="..\..\src\ForgeGate.Infrastructure\ForgeGate.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\ForgeGate.Domain\ForgeGate.Domain.csproj" />
+    <ProjectReference Include="..\ForgeGate.Application.Tests\ForgeGate.Application.Tests.csproj" />
   </ItemGroup>
 
 </Project>

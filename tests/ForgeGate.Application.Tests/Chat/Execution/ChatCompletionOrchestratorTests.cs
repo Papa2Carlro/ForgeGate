@@ -56,7 +56,7 @@ public class ChatCompletionOrchestratorTests
             new InMemoryRouteCapacityCoordinator());
 
         var provider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "response1" });
-        var executionService = new ChatExecutionService(provider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         return (orchestrator, resolver, health, provider);
@@ -76,7 +76,7 @@ public class ChatCompletionOrchestratorTests
             new InMemoryRouteCapacityCoordinator());
 
         var provider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "fallback-response" });
-        var executionService = new ChatExecutionService(provider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         return (orchestrator, resolver, health, provider);
@@ -137,7 +137,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(retryFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -185,7 +185,7 @@ public class ChatCompletionOrchestratorTests
             (ModelRouteId.From("gpt-4:gpt-4-turbo"), retryFailure),
             (ModelRouteId.From("gpt-4-2:gpt-4-turbo-2"), new CanonicalChatResponse { Content = "fallback-response" })
         );
-        var executionService = new ChatExecutionService(failoverProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failoverProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -230,7 +230,7 @@ public class ChatCompletionOrchestratorTests
             (ModelRouteId.From("gpt-4:gpt-4-turbo"), rateLimitedFailure),
             (ModelRouteId.From("gpt-4-2:gpt-4-turbo-2"), new CanonicalChatResponse { Content = "success-response" })
         );
-        var executionService = new ChatExecutionService(failoverProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failoverProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -271,7 +271,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(authFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -310,7 +310,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(invalidRequestFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -348,7 +348,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(contextFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -387,7 +387,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(delayFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -425,7 +425,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(immediateFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -503,7 +503,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(retryFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -578,7 +578,7 @@ public class ChatCompletionOrchestratorTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(retryFailure);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -624,7 +624,7 @@ public class ChatCompletionOrchestratorTests
             (ModelRouteId.From("gpt-4:gpt-4-turbo"), retryFailure),
             (ModelRouteId.From("gpt-4-2:gpt-4-turbo-2"), new CanonicalChatResponse { Content = "second-success" })
         );
-        var executionService = new ChatExecutionService(failoverProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failoverProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -664,7 +664,7 @@ public class ChatCompletionOrchestratorTests
 
         var callCount = 0;
         var failingProvider = new FakeCountingProvider(retryFailure, () => callCount++);
-        var executionService = new ChatExecutionService(failingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -761,7 +761,7 @@ public class ChatCompletionOrchestratorTests
             (ModelRouteId.From("provider-2:gpt-4"), retryFailure),
             (ModelRouteId.From("provider-3:gpt-4"), successResponse)
         );
-        var executionService = new ChatExecutionService(failoverProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failoverProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -794,7 +794,7 @@ public class ChatCompletionOrchestratorTests
             new InMemoryRouteCapacityCoordinator());
 
         var cancellingProvider = new FakeCancellingProvider();
-        var executionService = new ChatExecutionService(cancellingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(cancellingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -822,7 +822,7 @@ public class ChatCompletionOrchestratorTests
             new InMemoryRouteCapacityCoordinator());
 
         var throwingProvider = new FakeThrowingProvider();
-        var executionService = new ChatExecutionService(throwingProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(throwingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -918,7 +918,7 @@ public class ChatCompletionOrchestratorTests
 
         var successResponse = new CanonicalChatResponse { Content = "production-fallback" };
         var failoverProvider = new FakeFailoverProvider(retryFailure, successResponse);
-        var executionService = new ChatExecutionService(failoverProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failoverProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -947,7 +947,7 @@ public class ChatCompletionOrchestratorTests
             new InMemoryRouteCapacityCoordinator());
 
         var nullResponseProvider = new FakeNullResponseProvider();
-        var executionService = new ChatExecutionService(nullResponseProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(nullResponseProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();
@@ -976,7 +976,7 @@ public class ChatCompletionOrchestratorTests
             new InMemoryRouteCapacityCoordinator());
 
         var provider = new FakeChatCompletionProvider(new CanonicalChatResponse { Content = "response" });
-        var executionService = new ChatExecutionService(provider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = new CanonicalChatRequest
@@ -1052,7 +1052,7 @@ public class ChatCompletionOrchestratorTests
             (ModelRouteId.From("gpt-4:gpt-4-turbo"), retryFailure),
             (ModelRouteId.From("gpt-4-2:gpt-4-turbo-2"), new CanonicalChatResponse { Content = "success" })
         );
-        var executionService = new ChatExecutionService(failoverProvider, new RouteHealthFeedback(health));
+        var executionService = new ChatExecutionService(failoverProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
         var orchestrator = new ChatCompletionOrchestrator(resolver, executionService);
 
         var request = MakeRequest();

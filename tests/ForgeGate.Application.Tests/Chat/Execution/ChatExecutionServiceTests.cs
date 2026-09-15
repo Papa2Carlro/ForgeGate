@@ -32,7 +32,7 @@ public class ChatExecutionServiceTests
         };
 
         var mockProvider = new FakeChatCompletionProvider(expectedResponse);
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);
@@ -49,7 +49,7 @@ public class ChatExecutionServiceTests
     {
         // Given
         var mockProvider = new FakeChatCompletionProvider();
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
         var route = ModelRoute.FromIds(
             ProviderId.From("openai"),
             LogicalModelId.From("gpt-4"),
@@ -74,7 +74,7 @@ public class ChatExecutionServiceTests
         };
 
         var mockProvider = new FakeChatCompletionProvider();
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
 
         // When & Then
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await service.ExecuteAsync(request, null!, CancellationToken.None));
@@ -111,7 +111,7 @@ public class ChatExecutionServiceTests
         };
 
         var failingProvider = new FakeProviderThatReturnsSpecificFailure(expectedFailure);
-        var service = new ChatExecutionService(failingProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
+        var service = new ChatExecutionService(failingProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
 
         // When
         var outcome = await service.ExecuteAsync(request, route, CancellationToken.None);

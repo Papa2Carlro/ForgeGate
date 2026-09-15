@@ -3,6 +3,7 @@ using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Application.Chat.Routing.Eligibility;
+using ForgeGate.Application.Tests.Chat.TestDoubles;
 using ForgeGate.Domain.Providers;
 using ForgeGate.Infrastructure.Routing;
 using Microsoft.Extensions.Options;
@@ -122,7 +123,7 @@ public class RouteResolutionTests
         prop?.SetValue(route.ModelRoute, "provider-model");
 
         var mockProvider = new InlineFakeProvider(new CanonicalChatResponse { Content = "ok" });
-        var service = new ChatExecutionService(mockProvider, new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
+        var service = new ChatExecutionService(mockProvider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(new InMemoryRouteHealthStateProvider()));
         var request = new CanonicalChatRequest
         {
             RequestedModel = "client-model",

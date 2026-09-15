@@ -1,1 +1,101 @@
-{}
+{
+  "0": {
+    "ref": "0",
+    "path": "frontend-code-style.md",
+    "title": "0. Поточний стан сайту (базовий)",
+    "start_line": 13,
+    "end_line": 25,
+    "char_count": 687,
+    "text": "## 0. Поточний стан сайту (базовий)\n\n| Зараз | Ціль (цей документ) |\n| ----- | ------------------- |\n| Глобальний `src/index.css` + utility-ish class names у JSX | SCSS modules + BEM + `classnames/bind` для **нового** UI |\n| Плоскі файли `src/components/*.tsx` | Одна папка = один компонент + `index.ts` + `*.module.scss` |\n| Page UI у `useState` | View UI → ADR 0001 factory + Provider; i18n / router лишаються |\n| Немає Prettier / classnames / sass / zustand | Додати при першому міграційному PR (чекліст §9) |\n\n**Правило інтеграції:** новий або суттєво розбитий UI пишемо вже під цей канон. Старий `index.css` не переписуємо «за компанію» — лише коли чіпаємо той самий компонент.\n\n---"
+  },
+  "1": {
+    "ref": "1",
+    "path": "frontend-code-style.md",
+    "title": "1. Prettier",
+    "start_line": 26,
+    "end_line": 44,
+    "char_count": 680,
+    "text": "## 1. Prettier\n\n| Option            | Value                    |\n| ----------------- | ------------------------ |\n| `semi`            | `true`                   |\n| `tabWidth`        | `2`                      |\n| `useTabs`         | `false`                  |\n| `singleQuote`     | `false` (подвійні лапки) |\n| `trailingComma`   | `\"es5\"`                  |\n| `printWidth`      | `120`                    |\n| `bracketSpacing`  | `true`                   |\n| `bracketSameLine` | `false`                  |\n| `arrowParens`     | `\"always\"`               |\n| `endOfLine`       | `\"lf\"`                   |\n\nКонфіг: `prettier.config.cjs` — ті самі правила, що Doc Hub / Finance.\n\n---"
+  },
+  "2": {
+    "ref": "2",
+    "path": "frontend-code-style.md",
+    "title": "2. Структура компонента",
+    "start_line": 45,
+    "end_line": 72,
+    "char_count": 468,
+    "text": "## 2. Структура компонента\n\n```text\ncomponents/\n  ui/\n    Card/\n      Card.tsx\n      Card.module.scss\n      index.ts\n  SocialLinks/\n    SocialLinks.tsx\n    SocialLinks.module.scss\n    index.ts\npages/\n  benchmark/\n    BenchmarkPage.tsx          # або pages/BenchmarkPage.tsx + colocated store\n    benchmarkUiStore.ts        # ADR 0001\n    BenchmarkStoreContext.tsx\n```\n\nІмпорт ззовні — через barrel:\n\n```ts\nimport { SocialLinks } from \"components/SocialLinks\";\n```\n\n---"
+  },
+  "3": {
+    "ref": "3",
+    "path": "frontend-code-style.md",
+    "title": "3. TypeScript / React",
+    "start_line": 73,
+    "end_line": 81,
+    "char_count": 264,
+    "text": "## 3. TypeScript / React\n\n- Функціональні компоненти; `FC<Props>` або явний return.\n- Named export: `export { SocialLinks };`\n- `classnames` + bind (§5).\n- View UI state — [ADR 0001](ADR/0001-view-scoped-zustand-hybrid.md), не новий singleton у `src/stores/`.\n\n---"
+  },
+  "4": {
+    "ref": "4",
+    "path": "frontend-code-style.md",
+    "title": "4. SCSS architecture",
+    "start_line": 82,
+    "end_line": 127,
+    "char_count": 1157,
+    "text": "## 4. SCSS architecture\n\n### Глобальні стилі\n\nТокени **вже** в `src/index.css` (`:root` → `--ink`, `--foam`, `--accent`, …).  \nНові модулі беруть SCSS-аліаси з `src/styles/abstracts/_variables.scss` → `var(--…)`, без другої палітри hex.\n\n```text\nsrc/styles/\n  index.scss              # тонкий entry (опційно)\n  abstracts/\n    _variables.scss\n    _mixins.scss\n```\n\nПідключення: `main.tsx` може імпортувати `./styles/index.scss` перед `./index.css` лише якщо з’являться shared base rules. Поки модулі `@use \"styles/abstracts/…\"`.\n\n### CSS Modules\n\n- Файл: `ComponentName.module.scss` поруч з `ComponentName.tsx`.\n- Кореневий клас = **PascalCase**: `.SocialLinks`, `.Card`.\n- Елементи — **BEM** через `&__`; модифікатори — `&.footer`, `&.band`.\n\n```scss\n@use \"styles/abstracts/variables\" as v;\n@use \"styles/abstracts/mixins\" as m;\n\n.SocialLinks {\n  margin: 0;\n\n  &__lede {\n    color: v.$mute;\n  }\n\n  &.footer {\n    /* …\n```\n\n### Що не робити\n\n- Не тримати весь новий UI в одному `index.css`.\n- Не змішувати legacy global class keys і BEM module keys в одному новому компоненті без причини.\n- Не дублювати theme hex у модулях — тільки abstracts → CSS vars.\n\n---"
+  },
+  "5": {
+    "ref": "5",
+    "path": "frontend-code-style.md",
+    "title": "5. classnames / bind",
+    "start_line": 128,
+    "end_line": 143,
+    "char_count": 281,
+    "text": "## 5. classnames / bind\n\n```tsx\nimport classNames from \"classnames/bind\";\nimport scss from \"./SocialLinks.module.scss\";\n\nconst cn = classNames.bind(scss);\n\ncn(\"SocialLinks\", variant, className);\ncn(\"SocialLinks__list\");\n```\n\nКлючі — **рядки як у SCSS**, не `scss.SocialLinks`.\n\n---"
+  },
+  "6": {
+    "ref": "6",
+    "path": "frontend-code-style.md",
+    "title": "6. Імпорти",
+    "start_line": 144,
+    "end_line": 160,
+    "char_count": 434,
+    "text": "## 6. Імпорти\n\n1. React / пакети  \n2. Абсолютні аліаси (`components/…`, `styles/…`, `pages/…`, `lib/…`, `i18n/…`)  \n3. Відносні  \n4. `*.module.scss`\n\n| Alias          | Path               |\n| -------------- | ------------------ |\n| `components/*` | `src/components/*` |\n| `styles/*`     | `src/styles/*`     |\n| `pages/*`      | `src/pages/*`      |\n| `lib/*`        | `src/lib/*`        |\n| `i18n/*`       | `src/i18n/*`       |\n\n---"
+  },
+  "7": {
+    "ref": "7",
+    "path": "frontend-code-style.md",
+    "title": "7. Файли / іменування",
+    "start_line": 161,
+    "end_line": 172,
+    "char_count": 503,
+    "text": "## 7. Файли / іменування\n\n| Що                | Як                                         |\n| ----------------- | ------------------------------------------ |\n| Компонент / папка | `PascalCase`                               |\n| Хуки              | `useSomething.ts`                          |\n| Утиліти           | `camelCase.ts`                             |\n| CSS module        | `Name.module.scss`                         |\n| View UI store     | `xUiStore.ts` + `XStoreContext.tsx` (ADR 0001) |\n\n---"
+  },
+  "8": {
+    "ref": "8",
+    "path": "frontend-code-style.md",
+    "title": "8. Відхилення для сайту (свідомі)",
+    "start_line": 173,
+    "end_line": 181,
+    "char_count": 442,
+    "text": "## 8. Відхилення для сайту (свідомі)\n\n- **Токени** — існуюча landing-палітра в `index.css` (`--ink` / Syne / DM Sans); не копіювати Doc Hub `--dh-*` і не Searates purple.\n- **Немає Tailwind** на сайті — legacy = великий `index.css`; ціль = SCSS modules.\n- **Admin** (`admin/`, `vite.admin.config.ts`) — той самий канон, коли чіпаємо; не обов’язково в першому PR.\n- **i18n / Router** — chrome providers; виняток з ADR 0001 anti-singleton.\n\n---"
+  },
+  "9": {
+    "ref": "9",
+    "path": "frontend-code-style.md",
+    "title": "9. Чекліст міграції (сайт)",
+    "start_line": 182,
+    "end_line": 198,
+    "char_count": 1004,
+    "text": "## 9. Чекліст міграції (сайт)\n\n- [x] Додати `prettier` + `prettier.config.cjs`, `classnames`, `sass`, `zustand` (`npm run format`).\n- [x] Завести `src/styles/abstracts` (аліаси на CSS vars з `index.css`).\n- [x] Path aliases у Vite + tsconfig.\n- [x] Перший пілотний folder-компонент: `components/SocialLinks`.\n- [x] Перший ADR 0001 view store: Benchmark tabs.\n- [x] Наступні sections: home bands through Download/Lightbox (`Features`…`Screens`, `ProductStage`, `ControlledWorkflow`, `DownloadBand`/`DownloadCtas`, `Lightbox`).\n- [x] `WhatsNew` + `SiteFooter`.\n- [x] `Seo` / `Analytics` folder components.\n- [x] `pages/Docs` (DocsPage folder + SCSS module; article chrome no longer via `.bench-*`).\n- [x] `pages/benchmark` — `Benchmark.module.scss` scoped under `.Benchmark` (`:global` `.bench-*` until BEM pass); page barrel + Provider.\n- [ ] Лишились: shared `.btn`/page CSS, layout hooks (`.page`/`.band`); optional BEM rewrite of `.bench-*` JSX.\n- [ ] Не переписувати весь `index.css` у тому ж PR.\n\n---"
+  },
+  "10": {
+    "ref": "10",
+    "path": "frontend-code-style.md",
+    "title": "10. Приклад",
+    "start_line": 199,
+    "end_line": 201,
+    "char_count": 111,
+    "text": "## 10. Приклад\n\nДив. `src/components/SocialLinks/` після пілоту — BEM + `classnames/bind` + tokens з abstracts."
+  }
+}
