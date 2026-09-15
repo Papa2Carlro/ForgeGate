@@ -73,6 +73,7 @@
   "compatibility/normalization.md": [],
   "compatibility/parameters.md": [],
   "compatibility/unsupported.md": [],
+  "decisions/agent-guard-capability-translation.md": [],
   "decisions/backlog.md": [],
   "decisions/boundaries-updated.md": [],
   "decisions/boundaries.md": [],

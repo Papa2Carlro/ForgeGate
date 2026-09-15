@@ -7,6 +7,40 @@
       "snippet": "## Decision Use a **hybrid**: 1. **View UI / filters / tabs** shared by siblings — view-scoped **Zustand** store created with a **factory** (`createXStore()`), held in a React **Pr"
     }
   ],
+  "ActionIntent": [
+    {
+      "path": "decisions/agent-guard-capability-translation.md",
+      "heading": "3. Policy Boundary is Semantic Capability, Not Raw Command",
+      "start_line": 44,
+      "snippet": "### 3. Policy Boundary is Semantic Capability, Not Raw Command Policy operates on normalized `ActionIntent` (kind, target, mechanism, scope), not raw command strings. This is consi"
+    },
+    {
+      "path": "decisions/agent-guard-capability-translation.md",
+      "heading": "4. Translation ≠ Unconditional Allow",
+      "start_line": 50,
+      "snippet": "### 4. Translation ≠ Unconditional Allow Translation normalizes intent; it does not bypass policy. After translation: 1. The normalized `ActionIntent` flows through the existing de"
+    },
+    {
+      "path": "decisions/agent-guard-capability-translation.md",
+      "heading": "Implications",
+      "start_line": 116,
+      "snippet": "## Implications | Aspect | Impact | |--------|--------| | Policy engine | Extends to handle `ActionIntent` schema (kind/target/mechanism/scope) | | Providers | No change — provider"
+    },
+    {
+      "path": "decisions/agent-guard-capability-translation.md",
+      "heading": "Open Questions (Deferred)",
+      "start_line": 129,
+      "snippet": "## Open Questions (Deferred) - Exact `ActionIntent` schema (kind/target/mechanism/scope fields and types) - Capability registry: how capabilities are declared, versioned, discovere"
+    }
+  ],
+  "FileDelete": [
+    {
+      "path": "decisions/agent-guard-capability-translation.md",
+      "heading": "3. Policy Boundary is Semantic Capability, Not Raw Command",
+      "start_line": 44,
+      "snippet": "### 3. Policy Boundary is Semantic Capability, Not Raw Command Policy operates on normalized `ActionIntent` (kind, target, mechanism, scope), not raw command strings. This is consi"
+    }
+  ],
   "PascalCase": [
     {
       "path": "frontend-code-style.md",

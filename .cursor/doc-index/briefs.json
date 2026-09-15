@@ -1721,6 +1721,90 @@
     "must_lines": [],
     "char_count": 310
   },
+  "decisions/agent-guard-capability-translation.md": {
+    "path": "decisions/agent-guard-capability-translation.md",
+    "title": "Agent Guard: Capability Translation Architecture Decision",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "decisions/agent-guard-capability-translation.md",
+    "canonical_path": "decisions/agent-guard-capability-translation.md",
+    "first_paragraph": "**Status:** Locked **Date:** 2025-01-15 **Slice:** 17.1 **Refs:** `Docs/architecture/product/gateway-and-agent-guard.md`, `Docs/policy/policy-enforcement.md`",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Agent Guard: Capability Translation Architecture Decision"
+      },
+      {
+        "level": 2,
+        "title": "Decision"
+      },
+      {
+        "level": 2,
+        "title": "Core Principles"
+      },
+      {
+        "level": 3,
+        "title": "1. Capability Translation is Primary Mode"
+      },
+      {
+        "level": 3,
+        "title": "2. Model is NOT the Primary Safety Mechanism"
+      },
+      {
+        "level": 3,
+        "title": "3. Policy Boundary is Semantic Capability, Not Raw Command"
+      },
+      {
+        "level": 3,
+        "title": "4. Translation ≠ Unconditional Allow"
+      },
+      {
+        "level": 3,
+        "title": "5. Native Execution is Preferred When Safe"
+      },
+      {
+        "level": 3,
+        "title": "6. Unknown/Complex Actions Remain Policy-Controlled"
+      },
+      {
+        "level": 3,
+        "title": "7. Retraining/Correction is Secondary Mode"
+      },
+      {
+        "level": 3,
+        "title": "8. Structured Runtime/System Event is Source of Truth"
+      },
+      {
+        "level": 3,
+        "title": "9. System Alert is Presentation of Structured Event"
+      },
+      {
+        "level": 2,
+        "title": "Architecture Boundaries"
+      },
+      {
+        "level": 2,
+        "title": "Implications"
+      },
+      {
+        "level": 2,
+        "title": "Open Questions (Deferred)"
+      },
+      {
+        "level": 2,
+        "title": "Acceptance Criteria"
+      }
+    ],
+    "must_lines": [
+      "\"Gateway must NOT depend on Agent Guard. Agent Guard (future, optional): tool execution, capability enforcement, approvals, stronger guarantees. Leave clean boundaries; do not implement Agent Guard runtime now.\""
+    ],
+    "char_count": 6658
+  },
   "decisions/backlog.md": {
     "path": "decisions/backlog.md",
     "title": "Decision Triggers / Future Discussion Backlog",
@@ -1741,7 +1825,7 @@
       }
     ],
     "must_lines": [],
-    "char_count": 994
+    "char_count": 1137
   },
   "decisions/boundaries-updated.md": {
     "path": "decisions/boundaries-updated.md",

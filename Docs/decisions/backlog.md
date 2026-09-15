@@ -7,5 +7,6 @@ BEFORE Session Resolver: inspect actual VS Code Custom Endpoint request metadata
 BEFORE Persistence: finalize first durable entities/events; payload redaction/retention defaults; projection ownership.
 BEFORE Secret Management beyond local MVP: production encryption/key management; rotation lifecycle.
 BEFORE Admin UI beyond operational MVP: review actual operational pain points; expand toward full Control Plane.
+BEFORE Agent Guard runtime: finalize ActionIntent schema; capability registry design; translation engine architecture; correction loop bounds.
 
 Do NOT resolve deferred decisions during this documentation task.
