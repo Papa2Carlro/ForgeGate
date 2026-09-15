@@ -25,4 +25,27 @@ public sealed class OpenAIChatMessageDelta
 {
     public string? Role { get; init; }
     public string? Content { get; init; }
+    
+    /// <summary>
+    /// Tool calls delta chunks (accumulated across SSE events).
+    /// TODO: Streaming tool call accumulation requires separate slice design.
+    /// </summary>
+    public List<OpenAIChatMessageDeltaToolCall>? ToolCalls { get; init; }
+}
+
+/// <summary>
+/// Delta tool call in streaming response.
+/// Belongs to API layer; maps to structured ToolCallInvocation in canonical form.
+/// </summary>
+public sealed class OpenAIChatMessageDeltaToolCall
+{
+    public string? Id { get; init; }
+    public int? Index { get; init; }
+    public OpenAIChatMessageDeltaToolCallFunction? Function { get; init; }
+}
+
+public sealed class OpenAIChatMessageDeltaToolCallFunction
+{
+    public string? Name { get; init; }
+    public string? Arguments { get; init; }
 }

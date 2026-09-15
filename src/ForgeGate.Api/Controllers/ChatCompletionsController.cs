@@ -300,6 +300,8 @@ public sealed class ChatCompletionsController : ControllerBase
 
     private static OpenAIChatCompletionResponse MapToApiResponse(CanonicalChatResponse canonicalResponse, ModelRoute route)
     {
+        var finishReason = canonicalResponse.ToolCalls.Count > 0 ? "tool_calls" : "stop";
+        
         return new OpenAIChatCompletionResponse
         {
             Id = Guid.NewGuid().ToString("N"),
@@ -316,10 +318,26 @@ public sealed class ChatCompletionsController : ControllerBase
                         Role = "assistant",
                         Content = canonicalResponse.Content
                     },
-                    FinishReason = "stop"
+                    FinishReason = finishReason,
+                    ToolCalls = canonicalResponse.ToolCalls.Count > 0
+                        ? canonicalResponse.ToolCalls.Select(MapToApiToolCall).ToList()
+                        : null
                 }
             },
             Usage = null
+        };
+    }
+
+    private static OpenAIChatCompletionToolCall MapToApiToolCall(ToolCallInvocation invocation)
+    {
+        return new OpenAIChatCompletionToolCall
+        {
+            Id = invocation.Id,
+            Function = new OpenAIChatCompletionToolCallFunction
+            {
+                Name = invocation.Name,
+                Arguments = invocation.Arguments
+            }
         };
     }
 

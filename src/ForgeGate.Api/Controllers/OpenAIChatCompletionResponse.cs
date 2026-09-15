@@ -18,6 +18,27 @@ public sealed class OpenAIChatCompletionChoice
     public required int Index { get; init; }
     public required OpenAIChatMessage Message { get; init; }
     public required string FinishReason { get; init; }
+    
+    /// <summary>
+    /// Tool calls requested by the model. Present when FinishReason is "tool_calls".
+    /// </summary>
+    public List<OpenAIChatCompletionToolCall>? ToolCalls { get; init; }
+}
+
+/// <summary>
+/// OpenAI-compatible representation of a tool call in a chat completion response.
+/// </summary>
+public sealed class OpenAIChatCompletionToolCall
+{
+    public required string Id { get; init; }
+    public string Type { get; init; } = "function";
+    public OpenAIChatCompletionToolCallFunction Function { get; init; } = null!;
+}
+
+public sealed class OpenAIChatCompletionToolCallFunction
+{
+    public required string Name { get; init; }
+    public required string Arguments { get; init; }
 }
 
 public sealed class OpenAIUsage

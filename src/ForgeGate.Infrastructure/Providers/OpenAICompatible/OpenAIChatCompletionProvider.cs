@@ -86,13 +86,13 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
             if (openaiResponse == null)
             {
                 var failure = new ProviderFailure
-            {
-                Category = ProviderFailureCategory.MalformedResponse,
-                Retryability = ProviderFailureRetryability.NotRetryable,
-                Scope = ProviderFailureScope.Provider,
-                SanitizedUpstreamMessage = "Failed to deserialize provider response"
-            };
-            return ProviderExecutionOutcome.Failure(failure);
+                {
+                    Category = ProviderFailureCategory.MalformedResponse,
+                    Retryability = ProviderFailureRetryability.NotRetryable,
+                    Scope = ProviderFailureScope.Provider,
+                    SanitizedUpstreamMessage = "Failed to deserialize provider response"
+                };
+                return ProviderExecutionOutcome.Failure(failure);
             }
 
             // Map provider response to canonical response
@@ -145,9 +145,26 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         var content = response.Choices.FirstOrDefault()?.Message.Content
                      ?? string.Empty;
 
+        // Extract tool calls if present
+        var toolCalls = response.Choices
+            .SelectMany(c => c.ToolCalls ?? Enumerable.Empty<OpenAIChatCompletionToolCall>())
+            .Select(MapToCanonicalToolCall)
+            .ToList();
+
         return new CanonicalChatResponse
         {
-            Content = content
+            Content = content,
+            ToolCalls = toolCalls
+        };
+    }
+
+    private static ToolCallInvocation MapToCanonicalToolCall(OpenAIChatCompletionToolCall toolCall)
+    {
+        return new ToolCallInvocation
+        {
+            Id = toolCall.Id,
+            Name = toolCall.Function.Name,
+            Arguments = toolCall.Function.Arguments
         };
     }
 
@@ -156,5 +173,15 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         // In a real implementation, this would come from secure configuration/secrets
         // For this slice, we'll attempt to read from configuration but allow empty for keyless providers
         return ""; // Placeholder - would normally come from IConfiguration
+    }
+
+    /// <summary>
+    /// Exposed for testing - maps provider response to canonical response.
+    /// </summary>
+    public static CanonicalChatResponse MapToCanonicalResponseForTest(
+        ModelRoute route, 
+        OpenAIChatCompletionResponse response)
+    {
+        return MapToCanonicalResponse(route, response);
     }
 }
