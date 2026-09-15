@@ -16,10 +16,10 @@ namespace ForgeGate.Application.Chat.Execution;
 /// 4. Repeats until success or no more alternatives
 /// 
 /// Exhaustion contract:
-/// - Initial resolution failure → returns resolution failure directly
-/// - All routes in locked tier exhausted → returns NoEligibleRoute resolution failure
+/// - Initial resolution failure -> returns resolution failure directly
+/// - All routes in locked tier exhausted -> returns NoEligibleRoute resolution failure
 /// - Last provider failure is NOT returned after full exhaustion
-/// - Terminal non-retryable provider failure → returned immediately without failover
+/// - Terminal non-retryable provider failure -> returned immediately without failover
 /// 
 /// It does NOT:
 /// - Perform quality tier downgrade
@@ -27,6 +27,15 @@ namespace ForgeGate.Application.Chat.Execution;
 /// - Wait/backoff between attempts
 /// - Cross logical model fallback
 /// - Stream handling
+/// 
+/// AGENT GUARD INTEGRATION PREREQUISITE:
+/// This orchestrator does NOT currently integrate with Agent Guard because
+/// there is no legitimate semantic AgentAction source for ordinary chat
+/// completion requests. When a proper AgentAction source becomes available
+/// (e.g., tool call extraction from OpenAI protocol), the integration point
+/// is here: before calling _chatExecutionService.ExecuteAsync().
+/// 
+/// See: Docs/decisions/agent-guard-capability-translation.md
 /// </summary>
 public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
 {
@@ -65,7 +74,6 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
             if (!resolution.IsSuccess)
             {
                 // No more routes available
-
                 return ChatCompletionOutcome.FailWithResolutionError(resolution.FailureValue!);
             }
 
@@ -84,7 +92,6 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
             if (!lockedTier.HasValue)
             {
                 lockedTier = route.QualityTier;
-
             }
             else if (route.QualityTier != lockedTier.Value)
             {
@@ -92,8 +99,6 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
             }
 
             // Execute against the resolved route
-
-
             attemptedRoutes.Add(route.ModelRouteId);
 
             try
@@ -102,7 +107,6 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
 
                 if (outcome.IsSuccess)
                 {
-
                     return ChatCompletionOutcome.Success(outcome.Response!, route);
                 }
 
@@ -113,7 +117,6 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
                 if (failure == null)
                 {
                     // Should not happen, but treat as terminal
-
                     return ChatCompletionOutcome.Failure(new ProviderFailure
                     {
                         Category = ProviderFailureCategory.UnknownProviderFailure,
@@ -123,17 +126,13 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
                     });
                 }
 
-
-
                 if (failure.Retryability != ProviderFailureRetryability.RetryViaAnotherRoute)
                 {
                     // Terminal failure - do not failover
-
                     return ChatCompletionOutcome.Failure(failure);
                 }
 
                 // Continue to next attempt - the resolver will exclude this route
-
             }
             catch (OperationCanceledException)
             {

@@ -1,3 +1,5 @@
+using ForgeGate.Domain.AgentGuard;
+
 namespace ForgeGate.Application.Chat;
 
 /// <summary>
@@ -13,4 +15,5 @@ public sealed record ProviderFailure
     public string? UpstreamCode { get; init; }
     public string? SanitizedUpstreamMessage { get; init; }
     public TimeSpan? RetryAfter { get; init; }
+    public PolicyDecision? PolicyDecision { get; init; }
 }

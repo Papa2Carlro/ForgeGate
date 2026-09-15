@@ -18,5 +18,6 @@ public enum ProviderFailureCategory
     InvalidRequest,
     MalformedResponse,
     UnknownProviderFailure,
-    ConcurrencyLimited
+    ConcurrencyLimited,
+    AgentGuardDenied
 }

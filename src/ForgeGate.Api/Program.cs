@@ -5,6 +5,8 @@ using ForgeGate.Application.Chat.Routing.Health;
 using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Application.Chat.Routing.Eligibility;
 using ForgeGate.Application.Chat.Streaming;
+using ForgeGate.Application.AgentGuard;
+using ForgeGate.Domain.AgentGuard;
 using ForgeGate.Infrastructure.Providers.OpenAICompatible;
 using ForgeGate.Infrastructure.Routing;
 using Microsoft.Extensions.Configuration;
@@ -43,6 +45,11 @@ builder.Services.AddScoped<IRouteResolver, ConfiguredRouteResolver>(sp =>
 builder.Services.AddScoped<ChatExecutionService>();
 builder.Services.AddScoped<IChatCompletionOrchestrator, ChatCompletionOrchestrator>();
 builder.Services.AddScoped<IStreamingChatCompletionOrchestrator, StreamingChatCompletionOrchestrator>();
+builder.Services.AddSingleton<ICapabilityRegistry, InMemoryCapabilityRegistry>();
+builder.Services.AddScoped<IActionIntentNormalizer, BasicActionIntentNormalizer>();
+builder.Services.AddScoped<ICapabilityTranslator, BasicCapabilityTranslator>();
+builder.Services.AddScoped<IPolicyEvaluator, BasicPolicyEvaluator>();
+builder.Services.AddScoped<IAgentGuard, AgentGuardService>();
 
 var app = builder.Build();
 
