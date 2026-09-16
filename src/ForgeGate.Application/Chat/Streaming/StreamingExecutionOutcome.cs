@@ -1,3 +1,4 @@
+using ForgeGate.Application.Chat;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Chat.Streaming;
@@ -10,13 +11,18 @@ public sealed class StreamingExecutionOutcome
 {
     private StreamingExecutionOutcome() { }
 
-    public static StreamingExecutionOutcome Success(IReadOnlyList<string> bufferedChunks, bool isCommitted, ModelRoute route) =>
+    public static StreamingExecutionOutcome Success(
+        IReadOnlyList<string> bufferedChunks, 
+        bool isCommitted, 
+        ModelRoute route,
+        IReadOnlyList<ToolCallInvocation>? toolCalls = null) =>
         new()
         {
             IsSuccess = true,
             BufferedChunks = bufferedChunks ?? Array.Empty<string>(),
             IsCommitted = isCommitted,
-            SelectedRoute = route
+            SelectedRoute = route,
+            ToolCalls = toolCalls ?? Array.Empty<ToolCallInvocation>()
         };
 
     public static StreamingExecutionOutcome Failure(ProviderFailure failure) =>
@@ -31,4 +37,10 @@ public sealed class StreamingExecutionOutcome
     public bool IsCommitted { get; init; }
     public ProviderFailure? FailureValue { get; init; }
     public ModelRoute? SelectedRoute { get; init; }
+    
+    /// <summary>
+    /// Accumulated tool calls from streaming response.
+    /// Empty when response contains only text content.
+    /// </summary>
+    public IReadOnlyList<ToolCallInvocation> ToolCalls { get; init; } = Array.Empty<ToolCallInvocation>();
 }

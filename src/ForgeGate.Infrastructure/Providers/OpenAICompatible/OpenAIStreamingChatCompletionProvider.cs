@@ -13,6 +13,7 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
 {
     private readonly HttpClient _httpClient;
     private readonly string _endpoint;
+    private readonly StreamingToolCallAccumulator _toolCallAccumulator = new();
 
     public OpenAIStreamingChatCompletionProvider(HttpClient httpClient, IConfiguration configuration)
     {
@@ -83,7 +84,7 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
                     {
                         if (!string.IsNullOrEmpty(currentData))
                         {
-                            TryParseAndBufferChunk(currentData, buffer, chunks);
+                            TryParseAndBufferChunk(currentData, buffer, chunks, _toolCallAccumulator);
                         }
                     }
                     currentEvent = null;
@@ -106,7 +107,14 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
                 buffer.Commit();
             }
 
-            return StreamingExecutionOutcome.Success(chunks.AsReadOnly(), buffer.IsCommitted, route);
+            // Extract accumulated tool calls
+            var toolCalls = _toolCallAccumulator.GetAccumulatedCalls();
+
+            return StreamingExecutionOutcome.Success(
+                chunks.AsReadOnly(), 
+                buffer.IsCommitted, 
+                route,
+                toolCalls.Count > 0 ? toolCalls : null);
         }
         catch (OperationCanceledException)
         {
@@ -146,7 +154,11 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
         }
     }
 
-    private static void TryParseAndBufferChunk(string data, StreamingBuffer buffer, List<string> chunks)
+    private static void TryParseAndBufferChunk(
+        string data, 
+        StreamingBuffer buffer, 
+        List<string> chunks, 
+        StreamingToolCallAccumulator accumulator)
     {
         try
         {
@@ -159,6 +171,8 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
             if (chunk.Choices != null && chunk.Choices.Count > 0)
             {
                 var choice = chunk.Choices[0];
+                
+                // Buffer text content
                 if (choice.Delta?.Content != null)
                 {
                     if (buffer.TryAddChunk(choice.Delta.Content))
@@ -166,6 +180,9 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
                         chunks.Add(choice.Delta.Content);
                     }
                 }
+
+                // Accumulate tool call fragments
+                accumulator.AddDelta(choice.Delta?.ToolCalls?.ToArray());
             }
         }
         catch
@@ -216,4 +233,5 @@ internal sealed class OpenAIStreamChoice
 internal sealed class OpenAIStreamDelta
 {
     public string? Content { get; init; }
+    public List<OpenAIStreamDeltaToolCall>? ToolCalls { get; init; }
 }
