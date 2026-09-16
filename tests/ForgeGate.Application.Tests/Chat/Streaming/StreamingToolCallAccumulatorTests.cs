@@ -131,7 +131,9 @@ public class StreamingToolCallAccumulatorTests
         // Then
         Assert.Equal(2, calls.Count);
         Assert.Equal("call_0", calls[0].Id);
+        Assert.Equal(0, calls[0].Index);
         Assert.Equal("call_1", calls[1].Id);
+        Assert.Equal(1, calls[1].Index);
     }
 
     [Fact]

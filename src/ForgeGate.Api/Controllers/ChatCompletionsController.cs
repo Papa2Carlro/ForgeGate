@@ -231,6 +231,7 @@ public sealed class ChatCompletionsController : ControllerBase
                 long created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 string id = Guid.NewGuid().ToString("N");
 
+                // Emit text content chunks
                 foreach (var chunk in outcome.BufferedChunks)
                 {
                     var sseEvent = $"id: {Guid.NewGuid():N}\nevent: message\ndata: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"{model}\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{EscapeSseData(chunk)}\"}}}}]}}\n\n";
@@ -238,8 +239,20 @@ public sealed class ChatCompletionsController : ControllerBase
                     await Response.Body.FlushAsync(cancellationToken);
                 }
 
+                // Emit tool call deltas if present
+                if (outcome.ToolCalls.Count > 0)
+                {
+                    foreach (var toolCall in outcome.ToolCalls)
+                    {
+                        var toolCallEvent = BuildToolCallSseEvent(id, created, model, toolCall);
+                        await Response.WriteAsync(toolCallEvent, System.Text.Encoding.UTF8, cancellationToken);
+                        await Response.Body.FlushAsync(cancellationToken);
+                    }
+                }
+
                 // Send final done event
-                var finalEvent = $"id: {Guid.NewGuid():N}\nevent: message\ndata: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"{model}\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}],\"usage\":null}}\n\n";
+                var finishReason = outcome.ToolCalls.Count > 0 ? "tool_calls" : "stop";
+                var finalEvent = $"id: {Guid.NewGuid():N}\nevent: message\ndata: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"{model}\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"{finishReason}\"}}],\"usage\":null}}\n\n";
                 await Response.WriteAsync(finalEvent, System.Text.Encoding.UTF8, cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
@@ -339,6 +352,26 @@ public sealed class ChatCompletionsController : ControllerBase
                 Arguments = invocation.Arguments
             }
         };
+    }
+
+    /// <summary>
+    /// Builds an SSE event for a tool call in streaming response.
+    /// </summary>
+    public static string BuildToolCallSseEvent(string id, long created, string model, ToolCallInvocation toolCall)
+    {
+        var toolCallJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            index = toolCall.Index,
+            id = toolCall.Id,
+            type = "function",
+            @function = new
+            {
+                name = toolCall.Name,
+                arguments = toolCall.Arguments
+            }
+        });
+
+        return $"id: {Guid.NewGuid():N}\nevent: message\ndata: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"{model}\",\"choices\":[{{\"index\":0,\"delta\":{{\"tool_calls\":[{toolCallJson}]}}}}]}}\n\n";
     }
 
     private static int MapFailureToStatusCode(ProviderFailure failure)

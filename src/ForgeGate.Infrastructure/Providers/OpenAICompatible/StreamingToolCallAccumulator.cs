@@ -98,6 +98,7 @@ public sealed class StreamingToolCallAccumulator
 
             result.Add(new ToolCallInvocation
             {
+                Index = index,
                 Id = delta.Id,
                 Name = delta.Name,
                 Arguments = delta.Arguments
@@ -105,12 +106,7 @@ public sealed class StreamingToolCallAccumulator
         }
 
         // Sort by index to preserve order
-        result.Sort((a, b) => 
-        {
-            // We don't have index here, but insertion order is preserved
-            // by dictionary iteration order in C#
-            return 0;
-        });
+        result.Sort((a, b) => a.Index.CompareTo(b.Index));
 
         return result;
     }

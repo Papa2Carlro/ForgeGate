@@ -19,6 +19,12 @@ public sealed record ToolCallInvocation
     public required string Id { get; init; }
 
     /// <summary>
+    /// The index of this tool call in the provider's response.
+    /// Used to correlate with the original streaming delta index.
+    /// </summary>
+    public int Index { get; init; }
+
+    /// <summary>
     /// The name of the tool/function to invoke.
     /// </summary>
     public required string Name { get; init; }
