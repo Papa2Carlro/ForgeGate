@@ -1,6 +1,8 @@
+using ForgeGate.Application.AgentGuard;
 using ForgeGate.Application.Chat;
 using ForgeGate.Application.Chat.Routing.Capacity;
 using ForgeGate.Application.Chat.Routing.Resolution;
+using ForgeGate.Domain.AgentGuard;
 using ForgeGate.Domain.Providers;
 
 namespace ForgeGate.Application.Chat.Execution;
@@ -11,9 +13,10 @@ namespace ForgeGate.Application.Chat.Execution;
 /// This orchestrator:
 /// 1. Resolves an initial route
 /// 2. Executes the request against that route via ChatExecutionService
-/// 3. If the execution fails with RetryViaAnotherRoute, excludes the failed route
+/// 3. If tool calls are present in the response, evaluates them through Agent Guard
+/// 4. If the execution fails with RetryViaAnotherRoute, excludes the failed route
 ///    and attempts to resolve an alternative route in the SAME quality tier
-/// 4. Repeats until success or no more alternatives
+/// 5. Repeats until success or no more alternatives
 /// 
 /// Exhaustion contract:
 /// - Initial resolution failure -> returns resolution failure directly
@@ -28,26 +31,22 @@ namespace ForgeGate.Application.Chat.Execution;
 /// - Cross logical model fallback
 /// - Stream handling
 /// 
-/// AGENT GUARD INTEGRATION PREREQUISITE:
-/// This orchestrator does NOT currently integrate with Agent Guard because
-/// there is no legitimate semantic AgentAction source for ordinary chat
-/// completion requests. When a proper AgentAction source becomes available
-/// (e.g., tool call extraction from OpenAI protocol), the integration point
-/// is here: before calling _chatExecutionService.ExecuteAsync().
-/// 
 /// See: Docs/decisions/agent-guard-capability-translation.md
 /// </summary>
 public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
 {
     private readonly IRouteResolver _routeResolver;
     private readonly ChatExecutionService _chatExecutionService;
+    private readonly IAgentGuard? _agentGuard;
 
     public ChatCompletionOrchestrator(
         IRouteResolver routeResolver,
-        ChatExecutionService chatExecutionService)
+        ChatExecutionService chatExecutionService,
+        IAgentGuard? agentGuard = null)
     {
         _routeResolver = routeResolver ?? throw new ArgumentNullException(nameof(routeResolver));
         _chatExecutionService = chatExecutionService ?? throw new ArgumentNullException(nameof(chatExecutionService));
+        _agentGuard = agentGuard;
     }
 
     public async Task<ChatCompletionOutcome> ExecuteAsync(
@@ -107,6 +106,15 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
 
                 if (outcome.IsSuccess)
                 {
+                    // Evaluate tool calls through Agent Guard if present
+                    var toolCallOutcome = outcome.Response != null
+                        ? EvaluateToolCalls(outcome.Response.ToolCalls)
+                        : null;
+                    if (toolCallOutcome != null)
+                    {
+                        return toolCallOutcome;
+                    }
+
                     return ChatCompletionOutcome.Success(outcome.Response!, route);
                 }
 
@@ -143,5 +151,60 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
                 throw;
             }
         }
+    }
+
+    private ChatCompletionOutcome? EvaluateToolCalls(IReadOnlyList<ToolCallInvocation> toolCalls)
+    {
+        if (_agentGuard == null || toolCalls.Count == 0)
+            return null;
+
+        foreach (var toolCall in toolCalls)
+        {
+            var action = new AgentAction
+            {
+                Source = "tool_call",
+                RawAction = $"{toolCall.Name}({toolCall.Arguments})",
+                Payload = toolCall.Arguments
+            };
+
+            var guardResult = _agentGuard.Evaluate(action);
+
+            if (!guardResult.IsSuccess)
+            {
+                return ChatCompletionOutcome.Failure(new ProviderFailure
+                {
+                    Category = ProviderFailureCategory.AgentGuardDenied,
+                    Retryability = ProviderFailureRetryability.NotRetryable,
+                    Scope = ProviderFailureScope.Request,
+                    SanitizedUpstreamMessage = $"Agent Guard pipeline failed: {guardResult.FailureStage} - {guardResult.FailureReason}"
+                });
+            }
+
+            switch (guardResult.Decision)
+            {
+                case PolicyDecision.Allow:
+                    continue; // All tool calls allowed, proceed
+                case PolicyDecision.Deny:
+                    return ChatCompletionOutcome.Failure(new ProviderFailure
+                    {
+                        Category = ProviderFailureCategory.AgentGuardDenied,
+                        Retryability = ProviderFailureRetryability.NotRetryable,
+                        Scope = ProviderFailureScope.Request,
+                        SanitizedUpstreamMessage = $"Agent Guard: tool call '{toolCall.Name}' denied by policy",
+                        PolicyDecision = PolicyDecision.Deny
+                    });
+                case PolicyDecision.RequireHumanApproval:
+                    return ChatCompletionOutcome.Failure(new ProviderFailure
+                    {
+                        Category = ProviderFailureCategory.AgentGuardDenied,
+                        Retryability = ProviderFailureRetryability.NotRetryable,
+                        Scope = ProviderFailureScope.Request,
+                        SanitizedUpstreamMessage = $"Agent Guard: tool call '{toolCall.Name}' requires human approval",
+                        PolicyDecision = PolicyDecision.RequireHumanApproval
+                    });
+            }
+        }
+
+        return null;
     }
 }

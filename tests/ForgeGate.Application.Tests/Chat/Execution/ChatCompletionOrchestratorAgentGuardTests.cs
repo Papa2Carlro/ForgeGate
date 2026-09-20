@@ -15,12 +15,12 @@ namespace ForgeGate.Application.Tests.Chat.Execution;
 
 /// <summary>
 /// Integration tests for Agent Guard boundary in ChatCompletionOrchestrator.
-/// 
+///
 /// NOTE: These tests verify the Agent Guard FOUNDATION and DI wiring,
 /// but NOT actual gateway integration. The ChatCompletionOrchestrator
 /// does not currently invoke IAgentGuard because there is no legitimate
 /// semantic AgentAction source for ordinary chat completion requests.
-/// 
+///
 /// When a proper AgentAction source is available (e.g., tool call extraction),
 /// the integration point is in ChatCompletionOrchestrator.ExecuteAsync()
 /// before calling _chatExecutionService.ExecuteAsync().
@@ -199,7 +199,7 @@ public class ChatCompletionOrchestratorAgentGuardTests
     {
         var registry = new InMemoryCapabilityRegistry();
         var normalizer = new BasicActionIntentNormalizer(registry);
-        
+
         var action = new AgentAction
         {
             Source = "test",
@@ -217,7 +217,7 @@ public class ChatCompletionOrchestratorAgentGuardTests
     {
         var registry = new InMemoryCapabilityRegistry();
         var translator = new BasicCapabilityTranslator(registry);
-        
+
         var intent = new ActionIntent
         {
             Capability = ActionIntentKind.FileRead,
@@ -236,7 +236,7 @@ public class ChatCompletionOrchestratorAgentGuardTests
     {
         var registry = new InMemoryCapabilityRegistry();
         var evaluator = new BasicPolicyEvaluator(registry);
-        
+
         var translation = CapabilityTranslationResult.Success(
             ActionIntentKind.FileRead, "/workspace/foo.txt");
 
@@ -245,6 +245,209 @@ public class ChatCompletionOrchestratorAgentGuardTests
         Assert.True(result.IsSuccess);
         Assert.Equal(PolicyDecision.Allow, result.Decision);
         // Evaluator returns policy decision, does not execute
+    }
+
+    #endregion
+
+    #region E. Tool call interception tests
+
+    [Fact]
+    public async Task ToolCall_Allowed_ProceedsNormally()
+    {
+        // When IAgentGuard is provided and allows the tool call, execution proceeds
+        var health = new InMemoryRouteHealthStateProvider();
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new()
+                {
+                    RequestedModelAlias = "gpt-4",
+                    Enabled = true,
+                    QualityTier = DeclaredQualityTier.Preferred,
+                    ModelRoute = ModelRoute.FromIdsWithOptions(
+                        ProviderId.From("openai"),
+                        LogicalModelId.From("gpt-4"),
+                        ModelRouteId.From("openai:gpt-4"),
+                        "gpt-4-turbo",
+                        enabled: true,
+                        capabilities: ModelCapability.None,
+                        qualityTier: DeclaredQualityTier.Preferred,
+                        maxConcurrentExecutions: 100)
+                }
+            }
+        };
+
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(health),
+            new InMemoryRouteCapacityCoordinator());
+
+        var provider = new FakeChatCompletionProvider(
+            new CanonicalChatResponse
+            {
+                Content = "",
+                ToolCalls = new[] { new ToolCallInvocation { Id = "1", Index = 0, Name = "read_file", Arguments = "{\"path\": \"/workspace/foo.txt\"}" } }
+            });
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
+        var orchestrator = new ChatCompletionOrchestrator(resolver, executionService, new FakeAgentGuardAllow());
+
+        var request = MakeRequest();
+        var outcome = await orchestrator.ExecuteAsync(request, CancellationToken.None);
+
+        Assert.True(outcome.IsSuccess);
+        Assert.NotNull(outcome.Response);
+        Assert.Equal(1, provider.CallCount);
+    }
+
+    [Fact]
+    public async Task ToolCall_Denied_ReturnsAgentGuardDenied()
+    {
+        var health = new InMemoryRouteHealthStateProvider();
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new()
+                {
+                    RequestedModelAlias = "gpt-4",
+                    Enabled = true,
+                    QualityTier = DeclaredQualityTier.Preferred,
+                    ModelRoute = ModelRoute.FromIdsWithOptions(
+                        ProviderId.From("openai"),
+                        LogicalModelId.From("gpt-4"),
+                        ModelRouteId.From("openai:gpt-4"),
+                        "gpt-4-turbo",
+                        enabled: true,
+                        capabilities: ModelCapability.None,
+                        qualityTier: DeclaredQualityTier.Preferred,
+                        maxConcurrentExecutions: 100)
+                }
+            }
+        };
+
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(health),
+            new InMemoryRouteCapacityCoordinator());
+
+        var provider = new FakeChatCompletionProvider(
+            new CanonicalChatResponse
+            {
+                Content = "",
+                ToolCalls = new[] { new ToolCallInvocation { Id = "1", Index = 0, Name = "read_file", Arguments = "{\"path\": \"/workspace/foo.txt\"}" } }
+            });
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
+        var orchestrator = new ChatCompletionOrchestrator(resolver, executionService, new FakeAgentGuardDeny());
+
+        var request = MakeRequest();
+        var outcome = await orchestrator.ExecuteAsync(request, CancellationToken.None);
+
+        Assert.False(outcome.IsSuccess);
+        Assert.NotNull(outcome.FailureValue);
+        Assert.Equal(ProviderFailureCategory.AgentGuardDenied, outcome.FailureValue!.Category);
+        Assert.Equal(PolicyDecision.Deny, outcome.FailureValue.PolicyDecision);
+        Assert.Contains("denied by policy", outcome.FailureValue.SanitizedUpstreamMessage);
+    }
+
+    [Fact]
+    public async Task ToolCall_RequiresApproval_ReturnsPolicyDeniedWithApproval()
+    {
+        var health = new InMemoryRouteHealthStateProvider();
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new()
+                {
+                    RequestedModelAlias = "gpt-4",
+                    Enabled = true,
+                    QualityTier = DeclaredQualityTier.Preferred,
+                    ModelRoute = ModelRoute.FromIdsWithOptions(
+                        ProviderId.From("openai"),
+                        LogicalModelId.From("gpt-4"),
+                        ModelRouteId.From("openai:gpt-4"),
+                        "gpt-4-turbo",
+                        enabled: true,
+                        capabilities: ModelCapability.None,
+                        qualityTier: DeclaredQualityTier.Preferred,
+                        maxConcurrentExecutions: 100)
+                }
+            }
+        };
+
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(health),
+            new InMemoryRouteCapacityCoordinator());
+
+        var provider = new FakeChatCompletionProvider(
+            new CanonicalChatResponse
+            {
+                Content = "",
+                ToolCalls = new[] { new ToolCallInvocation { Id = "1", Index = 0, Name = "delete_file", Arguments = "{\"path\": \"/workspace/old.txt\"}" } }
+            });
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
+        var orchestrator = new ChatCompletionOrchestrator(resolver, executionService, new FakeAgentGuardRequireApproval());
+
+        var request = MakeRequest();
+        var outcome = await orchestrator.ExecuteAsync(request, CancellationToken.None);
+
+        Assert.False(outcome.IsSuccess);
+        Assert.NotNull(outcome.FailureValue);
+        Assert.Equal(ProviderFailureCategory.AgentGuardDenied, outcome.FailureValue!.Category);
+        Assert.Equal(PolicyDecision.RequireHumanApproval, outcome.FailureValue.PolicyDecision);
+        Assert.Contains("requires human approval", outcome.FailureValue.SanitizedUpstreamMessage);
+    }
+
+    [Fact]
+    public async Task NoToolCalls_PassesThroughWithoutGuard()
+    {
+        // When no tool calls are present, Agent Guard is not invoked
+        var health = new InMemoryRouteHealthStateProvider();
+        var config = new RoutingConfiguration
+        {
+            Routes = new List<ConfiguredRoute>
+            {
+                new()
+                {
+                    RequestedModelAlias = "gpt-4",
+                    Enabled = true,
+                    QualityTier = DeclaredQualityTier.Preferred,
+                    ModelRoute = ModelRoute.FromIdsWithOptions(
+                        ProviderId.From("openai"),
+                        LogicalModelId.From("gpt-4"),
+                        ModelRouteId.From("openai:gpt-4"),
+                        "gpt-4-turbo",
+                        enabled: true,
+                        capabilities: ModelCapability.None,
+                        qualityTier: DeclaredQualityTier.Preferred,
+                        maxConcurrentExecutions: 100)
+                }
+            }
+        };
+
+        var resolver = new ConfiguredRouteResolver(
+            Options.Create(config),
+            new HardRouteEligibilityEvaluator(),
+            new RouteHealthRanker(health),
+            new InMemoryRouteCapacityCoordinator());
+
+        var provider = new FakeChatCompletionProvider(
+            new CanonicalChatResponse { Content = "Hello" });
+        var executionService = new ChatExecutionService(provider, new FakeStreamingChatCompletionProvider(), new RouteHealthFeedback(health));
+        var orchestrator = new ChatCompletionOrchestrator(resolver, executionService, new FakeAgentGuardDeny());
+
+        var request = MakeRequest();
+        var outcome = await orchestrator.ExecuteAsync(request, CancellationToken.None);
+
+        // Should succeed because no tool calls means guard is skipped
+        Assert.True(outcome.IsSuccess);
+        Assert.NotNull(outcome.Response);
+        Assert.Equal("Hello", outcome.Response!.Content);
     }
 
     #endregion
