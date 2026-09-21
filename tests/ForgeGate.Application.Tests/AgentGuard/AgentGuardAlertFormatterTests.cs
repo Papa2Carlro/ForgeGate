@@ -137,7 +137,7 @@ public class AgentGuardAlertFormatterTests
 
         var result = AgentGuardResult.Success(decision, capability, target, layer3Result: layer3Result);
         var @event = AgentGuardEvent.FromSuccess(result, observation);
-        
+
         if (eventId.HasValue)
             return new AgentGuardEvent
             {

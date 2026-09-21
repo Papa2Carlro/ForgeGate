@@ -4,10 +4,10 @@ namespace ForgeGate.Application.AgentGuard;
 
 /// <summary>
 /// Default alert formatter for Agent Guard events.
-/// 
+///
 /// Produces deterministic, human-readable alert strings from structured events.
 /// Output is traceable via EventId and includes the relevant outcome details.
-/// 
+///
 /// Success events: show capability, target, decision, and Layer 3 finding.
 /// Failure events: show failure stage and reason.
 /// </summary>
@@ -30,18 +30,18 @@ public sealed class AgentGuardAlertFormatter : IAlertFormatter
         var decision = @event.Decision?.ToString() ?? "Unknown";
         var capability = @event.Capability?.ToString() ?? "Unknown";
         var target = string.IsNullOrEmpty(@event.Target) ? "(no target)" : @event.Target;
-        
+
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"[Agent Guard] Action approved: {capability} {target} → {decision}");
         sb.AppendLine($"  EventId: {@event.EventId}");
         sb.AppendLine($"  Decision: {decision}");
-        
+
         if (@event.Layer3Result != null)
         {
             var riskStatus = @event.Layer3Result.HasRiskFinding ? "RISK DETECTED" : "No risk found";
             sb.AppendLine($"  Layer 3: {riskStatus}");
         }
-        
+
         return sb.ToString().TrimEnd();
     }
 }
