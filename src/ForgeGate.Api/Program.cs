@@ -49,6 +49,7 @@ builder.Services.AddSingleton<ICapabilityRegistry, InMemoryCapabilityRegistry>()
 builder.Services.AddScoped<IActionIntentNormalizer, BasicActionIntentNormalizer>();
 builder.Services.AddScoped<ICapabilityTranslator, BasicCapabilityTranslator>();
 builder.Services.AddScoped<IPolicyEvaluator, BasicPolicyEvaluator>();
+builder.Services.AddScoped<ILayer3Evaluator, BasicLayer3Evaluator>();
 builder.Services.AddScoped<IAgentGuard, AgentGuardService>();
 
 var app = builder.Build();

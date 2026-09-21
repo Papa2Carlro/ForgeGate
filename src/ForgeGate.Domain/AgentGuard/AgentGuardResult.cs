@@ -26,7 +26,8 @@ public sealed class AgentGuardResult
         ActionIntentKind capability,
         string target,
         string? metadata = null,
-        string? reason = null) =>
+        string? reason = null,
+        Layer3EvaluationResult? layer3Result = null) =>
         new()
         {
             IsSuccess = true,
@@ -35,6 +36,7 @@ public sealed class AgentGuardResult
             Target = target,
             Metadata = metadata,
             Reason = reason,
+            Layer3Result = layer3Result,
             FailureStage = null,
             FailureReason = null
         };
@@ -93,6 +95,7 @@ public sealed class AgentGuardResult
     public string Target { get; init; } = string.Empty;
     public string? Metadata { get; init; }
     public string? Reason { get; init; }
+    public Layer3EvaluationResult? Layer3Result { get; init; }
     public string? FailureStage { get; init; }
     public string? FailureReason { get; init; }
 }

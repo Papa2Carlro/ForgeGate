@@ -12,15 +12,17 @@
 - Streaming foundation (pre-commit/post-commit boundary): complete
 - Agent Guard domain (capability registry, translator, evaluator): complete
 - ToolCall extraction/streaming foundation: complete
+- **Slice 28 COMPLETED** — Agent Guard integration for tool calls (commit 5090001)
 
 ## Current Architectural State
 
-- Agent Guard integration: **PENDING**
-- ToolCallInvocation exists but not wired to Agent Guard
-- Policy decision flow: **NOT IMPLEMENTED**
+- Agent Guard integration: **COMPLETED** (commit 5090001)
+- ToolCallInvocation wired to Agent Guard in both orchestrators
+- Policy decision flow: **IMPLEMENTED** (Allow/Deny/RequireHumanApproval)
 - Structured event logging: PENDING
 
 ## Next Bounded Work Unit
+**Slice 29: Layer 3 Risk/Suspicion Evaluation Integration** — See `Docs/planning/slice-29-task.md` for detailed scope.
 
 **Slice 28: Tool Call Interception with Agent Guard Integration**
 

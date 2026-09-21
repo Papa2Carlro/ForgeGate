@@ -1,0 +1,9 @@
+---
+description: Test rule from .dochub
+alwaysApply: true
+managed-by: doc-memory
+---
+
+# THIS RULE IS FROM .DOCHUB
+
+This is a unique test rule.

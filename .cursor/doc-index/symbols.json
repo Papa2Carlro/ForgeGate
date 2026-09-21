@@ -31,6 +31,12 @@
       "heading": "Open Questions (Deferred)",
       "start_line": 129,
       "snippet": "## Open Questions (Deferred) - Exact `ActionIntent` schema (kind/target/mechanism/scope fields and types) - Capability registry: how capabilities are declared, versioned, discovere"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Unresolved (Deferred)",
+      "start_line": 74,
+      "snippet": "## Unresolved (Deferred) This ADR does NOT resolve: - `ActionIntent` schema (kind/target/mechanism/scope fields and types) - Structural validation contract (what is validated, wher"
     }
   ],
   "FileDelete": [
@@ -39,6 +45,392 @@
       "heading": "3. Policy Boundary is Semantic Capability, Not Raw Command",
       "start_line": 44,
       "snippet": "### 3. Policy Boundary is Semantic Capability, Not Raw Command Policy operates on normalized `ActionIntent` (kind, target, mechanism, scope), not raw command strings. This is consi"
+    }
+  ],
+  "PolicyDecision": [
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Layer 3 of the Agent Guard pipeline is the cross-session semantic evidence layer. It provides the contextual attribution signals that the deterministic policy layer and "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Layer 3 of the Agent Guard pipeline is the cross-session semantic evidence layer. It provides the contextual attribution signals that the deterministic policy layer and "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Decision",
+      "start_line": 14,
+      "snippet": "## Decision **`REPLAN` is NOT a runtime `PolicyDecision` value.** Runtime policy model remains: ``` PolicyDecision ├── Allow ├── Deny └── RequireHumanApproval ``` `REPLAN` is an **"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "What this means",
+      "start_line": 29,
+      "snippet": "### What this means 1. **`DENY`** = policy evaluator says \"this candidate action cannot execute as-is\" 2. **`REPLAN`** = orchestration control flow that MAY feed denial reason back"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Evidence basis",
+      "start_line": 36,
+      "snippet": "### Evidence basis - ADR 0001 point 7: \"Model correction ... is a secondary mechanism, used only when: the resulting capability was policy-denied\" - `Docs/policy/correction-loop.md"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    }
+  ],
+  "ForeignSessionId": [
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Decision A — ForeignSessionId",
+      "start_line": 26,
+      "snippet": "## Decision A — ForeignSessionId **`ForeignSessionId` is not required by the minimum Layer 3 cross-session semantic evidence contract.** Under Option B (Context Ownership), the cal"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Decision A — ForeignSessionId",
+      "start_line": 26,
+      "snippet": "## Decision A — ForeignSessionId **`ForeignSessionId` is not required by the minimum Layer 3 cross-session semantic evidence contract.** Under Option B (Context Ownership), the cal"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Scope",
+      "start_line": 34,
+      "snippet": "### Scope - Caller/orchestration **may** provide `ForeignSessionId` as optional enrichment when session identity is resolved. - `ForeignSessionId` is **not a prerequisite** of the "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Scope",
+      "start_line": 34,
+      "snippet": "### Scope - Caller/orchestration **may** provide `ForeignSessionId` as optional enrichment when session identity is resolved. - `ForeignSessionId` is **not a prerequisite** of the "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Scope",
+      "start_line": 34,
+      "snippet": "### Scope - Caller/orchestration **may** provide `ForeignSessionId` as optional enrichment when session identity is resolved. - `ForeignSessionId` is **not a prerequisite** of the "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "What this does NOT decide",
+      "start_line": 42,
+      "snippet": "### What this does NOT decide - The format or type of `ForeignSessionId` when present (implementation decision). - Whether absence of `ForeignSessionId` affects risk scoring (defer"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "What this does NOT decide",
+      "start_line": 42,
+      "snippet": "### What this does NOT decide - The format or type of `ForeignSessionId` when present (implementation decision). - Whether absence of `ForeignSessionId` affects risk scoring (defer"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Resulting Minimum Semantic Model",
+      "start_line": 84,
+      "snippet": "## Resulting Minimum Semantic Model Decisions A and B constrain the minimum Layer 3 attribution contract but do **not** establish a canonical state taxonomy. An illustrative model "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "For Layer 3 Contract",
+      "start_line": 127,
+      "snippet": "### For Layer 3 Contract - Minimum evidence contract does not require `ForeignSessionId` - Minimum contract does not require `CurrentSessionAttribution` as a discrete state - Orche"
+    }
+  ],
+  "SessionResolver": [
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Scope",
+      "start_line": 34,
+      "snippet": "### Scope - Caller/orchestration **may** provide `ForeignSessionId` as optional enrichment when session identity is resolved. - `ForeignSessionId` is **not a prerequisite** of the "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "What this does NOT decide",
+      "start_line": 42,
+      "snippet": "### What this does NOT decide - The format or type of `ForeignSessionId` when present (implementation decision). - Whether absence of `ForeignSessionId` affects risk scoring (defer"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Explicitly Deferred",
+      "start_line": 105,
+      "snippet": "## Explicitly Deferred The following questions remain open and are intentionally NOT resolved by this decision: - Recency representation (timestamp vs. sequence number vs. normaliz"
+    }
+  ],
+  "CurrentSessionAttribution": [
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Decision B — CurrentSessionAttribution",
+      "start_line": 50,
+      "snippet": "## Decision B — CurrentSessionAttribution **`CurrentSessionAttribution` is not a distinct required semantic state in the minimum Layer 3 attribution contract.** The minimum contrac"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Scope",
+      "start_line": 65,
+      "snippet": "### Scope - The minimum contract does not require a discrete `CurrentSessionAttribution` state. - Enrichment layers may distinguish current-session activity from idle when useful f"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Resulting Minimum Semantic Model",
+      "start_line": 84,
+      "snippet": "## Resulting Minimum Semantic Model Decisions A and B constrain the minimum Layer 3 attribution contract but do **not** establish a canonical state taxonomy. An illustrative model "
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "For Layer 3 Contract",
+      "start_line": 127,
+      "snippet": "### For Layer 3 Contract - Minimum evidence contract does not require `ForeignSessionId` - Minimum contract does not require `CurrentSessionAttribution` as a discrete state - Orche"
+    }
+  ],
+  "Unavailable": [
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Decision B — CurrentSessionAttribution",
+      "start_line": 50,
+      "snippet": "## Decision B — CurrentSessionAttribution **`CurrentSessionAttribution` is not a distinct required semantic state in the minimum Layer 3 attribution contract.** The minimum contrac"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "What this does NOT decide",
+      "start_line": 72,
+      "snippet": "### What this does NOT decide - Whether current-session activity appears in optional enrichment fields (deferred). - The active-session lifecycle model (deferred). - The exact sema"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Explicitly Deferred",
+      "start_line": 105,
+      "snippet": "## Explicitly Deferred The following questions remain open and are intentionally NOT resolved by this decision: - Recency representation (timestamp vs. sequence number vs. normaliz"
+    },
+    {
+      "path": "decisions/layer-3-evaluation-result-boundary.md",
+      "heading": "Explicitly Deferred",
+      "start_line": 115,
+      "snippet": "## Explicitly Deferred The following items remain OPEN and are intentionally NOT resolved by this decision: - Exact semantic contents of the evaluation finding (what fields/data it"
+    }
+  ],
+  "NoRelevantAttribution": [
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "Decision B — CurrentSessionAttribution",
+      "start_line": 50,
+      "snippet": "## Decision B — CurrentSessionAttribution **`CurrentSessionAttribution` is not a distinct required semantic state in the minimum Layer 3 attribution contract.** The minimum contrac"
+    },
+    {
+      "path": "decisions/layer-3-attribution-contract.md",
+      "heading": "What this does NOT decide",
+      "start_line": 72,
+      "snippet": "### What this does NOT decide - Whether current-session activity appears in optional enrichment fields (deferred). - The active-session lifecycle model (deferred). - The exact sema"
+    },
+    {
+      "path": "decisions/layer-3-evaluation-result-boundary.md",
+      "heading": "Explicitly Deferred",
+      "start_line": 115,
+      "snippet": "## Explicitly Deferred The following items remain OPEN and are intentionally NOT resolved by this decision: - Exact semantic contents of the evaluation finding (what fields/data it"
+    }
+  ],
+  "ForeignAttribution": [
+    {
+      "path": "decisions/layer-3-evaluation-result-boundary.md",
+      "heading": "Explicitly Deferred",
+      "start_line": 115,
+      "snippet": "## Explicitly Deferred The following items remain OPEN and are intentionally NOT resolved by this decision: - Exact semantic contents of the evaluation finding (what fields/data it"
+    }
+  ],
+  "REPLAN": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Decision",
+      "start_line": 14,
+      "snippet": "## Decision **`REPLAN` is NOT a runtime `PolicyDecision` value.** Runtime policy model remains: ``` PolicyDecision ├── Allow ├── Deny └── RequireHumanApproval ``` `REPLAN` is an **"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Decision",
+      "start_line": 14,
+      "snippet": "## Decision **`REPLAN` is NOT a runtime `PolicyDecision` value.** Runtime policy model remains: ``` PolicyDecision ├── Allow ├── Deny └── RequireHumanApproval ``` `REPLAN` is an **"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "What this means",
+      "start_line": 29,
+      "snippet": "### What this means 1. **`DENY`** = policy evaluator says \"this candidate action cannot execute as-is\" 2. **`REPLAN`** = orchestration control flow that MAY feed denial reason back"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Evidence basis",
+      "start_line": 36,
+      "snippet": "### Evidence basis - ADR 0001 point 7: \"Model correction ... is a secondary mechanism, used only when: the resulting capability was policy-denied\" - `Docs/policy/correction-loop.md"
+    }
+  ],
+  "ALLOW": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    }
+  ],
+  "DENY": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Decision",
+      "start_line": 14,
+      "snippet": "## Decision **`REPLAN` is NOT a runtime `PolicyDecision` value.** Runtime policy model remains: ``` PolicyDecision ├── Allow ├── Deny └── RequireHumanApproval ``` `REPLAN` is an **"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "What this means",
+      "start_line": 29,
+      "snippet": "### What this means 1. **`DENY`** = policy evaluator says \"this candidate action cannot execute as-is\" 2. **`REPLAN`** = orchestration control flow that MAY feed denial reason back"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "What this means",
+      "start_line": 29,
+      "snippet": "### What this means 1. **`DENY`** = policy evaluator says \"this candidate action cannot execute as-is\" 2. **`REPLAN`** = orchestration control flow that MAY feed denial reason back"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "What this means",
+      "start_line": 29,
+      "snippet": "### What this means 1. **`DENY`** = policy evaluator says \"this candidate action cannot execute as-is\" 2. **`REPLAN`** = orchestration control flow that MAY feed denial reason back"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Orchestration Layer",
+      "start_line": 51,
+      "snippet": "### For Orchestration Layer - Correction loop is ORCHESTRATION concern, not policy concern - `DENY` MAY become trigger for correction/replan flow; exact eligibility conditions are "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Documentation",
+      "start_line": 58,
+      "snippet": "### For Documentation - `Docs/policy/outcomes.md`: \"ALLOW / DENY / REPLAN / ASK_USER\" should be interpreted as SYSTEM-LEVEL outcomes; REPLAN describes orchestration behavior after "
+    }
+  ],
+  "Allow": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    }
+  ],
+  "Deny": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    }
+  ],
+  "RequireHumanApproval": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "Context",
+      "start_line": 10,
+      "snippet": "## Context Documentation references `REPLAN` as a canonical outcome alongside `ALLOW`, `DENY`, and `ASK_USER`. Runtime code implements only three `PolicyDecision` values: `Allow`, "
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For ASK_USER / RequireHumanApproval",
+      "start_line": 63,
+      "snippet": "### For ASK_USER / RequireHumanApproval - `RequireHumanApproval` in code serves the role of `ASK_USER` in docs - Naming difference is intentional (code is more descriptive) - No be"
+    }
+  ],
+  "Replan": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "What this means",
+      "start_line": 29,
+      "snippet": "### What this means 1. **`DENY`** = policy evaluator says \"this candidate action cannot execute as-is\" 2. **`REPLAN`** = orchestration control flow that MAY feed denial reason back"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    },
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    }
+  ],
+  "PolicyEvaluationResult": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    }
+  ],
+  "Decision": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    }
+  ],
+  "Reason": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    }
+  ],
+  "AgentGuardResult": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Policy Layer",
+      "start_line": 45,
+      "snippet": "### For Policy Layer - `PolicyDecision` enum unchanged — no `Replan` value added - `PolicyEvaluationResult` unchanged — still carries `Decision` + `Reason` - `AgentGuardResult` unc"
+    }
+  ],
+  "ProviderFailure": [
+    {
+      "path": "decisions/policy-outcome-replan-boundary.md",
+      "heading": "For Orchestration Layer",
+      "start_line": 51,
+      "snippet": "### For Orchestration Layer - Correction loop is ORCHESTRATION concern, not policy concern - `DENY` MAY become trigger for correction/replan flow; exact eligibility conditions are "
     }
   ],
   "PascalCase": [

@@ -1915,6 +1915,185 @@
     "must_lines": [],
     "char_count": 1856
   },
+  "decisions/layer-3-attribution-contract.md": {
+    "path": "decisions/layer-3-attribution-contract.md",
+    "title": "Layer 3 Cross-Session Attribution Contract",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "decisions/layer-3-attribution-contract.md",
+    "canonical_path": "decisions/layer-3-attribution-contract.md",
+    "first_paragraph": "**Status:** Decided **Date:** 2026-09-21 **Slice:** Pre-Slice-29 (prerequisite for semantic escalation bounded research) **Refs:** `Docs/decisions/agent-guard-capability-translation.md`, `Docs/decisions/policy-outcome-replan-boundary.md`, `Docs/architecture/supervision/cross-session.md`, `Docs/architecture/supervision/soft-ownership.md`, `Docs/policy/semantic-escalation.md`, `Docs/supervision/deferred-triggers.md`",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Layer 3 Cross-Session Attribution Contract"
+      },
+      {
+        "level": 2,
+        "title": "Context"
+      },
+      {
+        "level": 2,
+        "title": "Decision A — ForeignSessionId"
+      },
+      {
+        "level": 3,
+        "title": "Scope"
+      },
+      {
+        "level": 3,
+        "title": "What this does NOT decide"
+      },
+      {
+        "level": 2,
+        "title": "Decision B — CurrentSessionAttribution"
+      },
+      {
+        "level": 3,
+        "title": "Scope"
+      },
+      {
+        "level": 3,
+        "title": "What this does NOT decide"
+      },
+      {
+        "level": 2,
+        "title": "Resulting Minimum Semantic Model"
+      },
+      {
+        "level": 2,
+        "title": "Explicitly Deferred"
+      },
+      {
+        "level": 2,
+        "title": "Consequences"
+      },
+      {
+        "level": 3,
+        "title": "For Layer 3 Contract"
+      },
+      {
+        "level": 3,
+        "title": "For Implementation"
+      },
+      {
+        "level": 3,
+        "title": "For Boundary Preservation"
+      },
+      {
+        "level": 3,
+        "title": "For Deferred Work"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 8661
+  },
+  "decisions/layer-3-evaluation-result-boundary.md": {
+    "path": "decisions/layer-3-evaluation-result-boundary.md",
+    "title": "Layer 3 Evaluation Result Boundary",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "decisions/layer-3-evaluation-result-boundary.md",
+    "canonical_path": "decisions/layer-3-evaluation-result-boundary.md",
+    "first_paragraph": "**Status:** Decided **Date:** 2026-09-21 **Slice:** Pre-Slice-29 (follows `layer-3-attribution-contract.md`) **Refs:** `Docs/decisions/layer-3-attribution-contract.md`, `Docs/decisions/agent-guard-capability-translation.md`, `Docs/decisions/policy-outcome-replan-boundary.md`, `Docs/supervision/action-policy.md`, `Docs/policy/tool-enforcement.md`, `Docs/policy/semantic-escalation.md`",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Layer 3 Evaluation Result Boundary"
+      },
+      {
+        "level": 2,
+        "title": "Decision"
+      },
+      {
+        "level": 2,
+        "title": "Pipeline Position"
+      },
+      {
+        "level": 2,
+        "title": "Responsibility Assignment"
+      },
+      {
+        "level": 3,
+        "title": "Layer 3 owns:"
+      },
+      {
+        "level": 3,
+        "title": "Layer 3 does NOT own:"
+      },
+      {
+        "level": 3,
+        "title": "Orchestration owns:"
+      },
+      {
+        "level": 3,
+        "title": "Layer 4 owns:"
+      },
+      {
+        "level": 2,
+        "title": "Critical Distinctions"
+      },
+      {
+        "level": 3,
+        "title": "\"Evaluation finding\" ≠ \"Escalation decision\""
+      },
+      {
+        "level": 3,
+        "title": "Minimum semantic distinction is closed; representation is open"
+      },
+      {
+        "level": 3,
+        "title": "\"Suspicion/risk signal\" ≠ Predefined taxonomy"
+      },
+      {
+        "level": 3,
+        "title": "Semantic category ≠ Concrete contract"
+      },
+      {
+        "level": 2,
+        "title": "Compatibility with Existing Decisions"
+      },
+      {
+        "level": 2,
+        "title": "Explicitly Deferred"
+      },
+      {
+        "level": 2,
+        "title": "Consequences"
+      },
+      {
+        "level": 3,
+        "title": "For Layer 3 Contract"
+      },
+      {
+        "level": 3,
+        "title": "For Implementation"
+      },
+      {
+        "level": 3,
+        "title": "For Boundary Preservation"
+      },
+      {
+        "level": 3,
+        "title": "For Future Work"
+      }
+    ],
+    "must_lines": [
+      "Layer 3 Evaluation Result communicates the finding of the Layer 3 risk/suspicion evaluation and MUST semantically distinguish whether a relevant risk/suspicion finding was present or absent.** It does not communicate an escalation command, ",
+      "The decision establishes that the Layer 3 Evaluation Result MUST semantically distinguish between:"
+    ],
+    "char_count": 6752
+  },
   "decisions/mvp-status.md": {
     "path": "decisions/mvp-status.md",
     "title": "MVP Decision Status Update",
@@ -1936,6 +2115,85 @@
     ],
     "must_lines": [],
     "char_count": 1776
+  },
+  "decisions/policy-outcome-replan-boundary.md": {
+    "path": "decisions/policy-outcome-replan-boundary.md",
+    "title": "Policy Outcome / REPLAN Boundary",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "decisions/policy-outcome-replan-boundary.md",
+    "canonical_path": "decisions/policy-outcome-replan-boundary.md",
+    "first_paragraph": "**Status:** Decided **Date:** 2026-09-20 **Slice:** 28 post-implementation **Refs:** `Docs/policy/outcomes.md`, `Docs/policy/correction-loop.md`, `Docs/policy/pre-execution.md`, `Docs/supervision/action-policy.md`, `Docs/policy/semantic-escalation.md`, `Docs/decisions/agent-guard-capability-translation.md`",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Policy Outcome / REPLAN Boundary"
+      },
+      {
+        "level": 2,
+        "title": "Context"
+      },
+      {
+        "level": 2,
+        "title": "Decision"
+      },
+      {
+        "level": 3,
+        "title": "What this means"
+      },
+      {
+        "level": 3,
+        "title": "Evidence basis"
+      },
+      {
+        "level": 2,
+        "title": "Consequences"
+      },
+      {
+        "level": 3,
+        "title": "For Policy Layer"
+      },
+      {
+        "level": 3,
+        "title": "For Orchestration Layer"
+      },
+      {
+        "level": 3,
+        "title": "For Documentation"
+      },
+      {
+        "level": 3,
+        "title": "For ASK_USER / RequireHumanApproval"
+      },
+      {
+        "level": 3,
+        "title": "For Task-Level REPLAN"
+      },
+      {
+        "level": 2,
+        "title": "Unresolved (Deferred)"
+      },
+      {
+        "level": 2,
+        "title": "Slice 29 Status"
+      },
+      {
+        "level": 2,
+        "title": "References"
+      }
+    ],
+    "must_lines": [
+      "4. **Semantic reasoner** = Layer 4 of pipeline; its eventual output contract must remain compatible with the existing 3-value `PolicyDecision` model and must not require a new `Replan` outcome.",
+      "`Docs/policy/outcomes.md`: \"DENY (action must not execute) and REPLAN (model should choose another compliant path) are different concepts\" — these are SYSTEM-level behaviors, not policy-layer peers",
+      "Semantic reasoner must not require a new runtime `Replan` policy outcome; its eventual output contract remains to be defined and must remain compatible with this boundary unless a later ADR explicitly changes it",
+      "Its scope cannot yet be bounded because prerequisite contracts from `Docs/supervision/deferred-triggers.md` remain unresolved. The REPLAN policy-boundary question is resolved by this ADR. The next bounded research task must identify which r"
+    ],
+    "char_count": 5810
   },
   "decisions/triggers.md": {
     "path": "decisions/triggers.md",
@@ -4639,6 +4897,335 @@
       "Default: bounded/minimal retention. Full/debug enabled deliberately. Security/privacy implications must be considered."
     ],
     "char_count": 239
+  },
+  "planning/drafts/adrs/0001-slice-28-tool-call-interception-with-age.md": {
+    "path": "planning/drafts/adrs/0001-slice-28-tool-call-interception-with-age.md",
+    "title": "ADR 0001 — Slice 28 - Tool Call Interception with Agent Guard Integration",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/drafts/adrs/0001-slice-28-tool-call-interception-with-age.md",
+    "canonical_path": "planning/drafts/adrs/0001-slice-28-tool-call-interception-with-age.md",
+    "first_paragraph": "**Date:** 2026-09-16 **Status:** Proposed",
+    "toc": [
+      {
+        "level": 1,
+        "title": "ADR 0001 — Slice 28 - Tool Call Interception with Agent Guard Integration"
+      },
+      {
+        "level": 2,
+        "title": "Context"
+      },
+      {
+        "level": 2,
+        "title": "Decision"
+      },
+      {
+        "level": 2,
+        "title": "Consequences"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 238
+  },
+  "planning/drafts/roadmaps/3-slice-28-tool-call-interception-with-agent-guard.md": {
+    "path": "planning/drafts/roadmaps/3-slice-28-tool-call-interception-with-agent-guard.md",
+    "title": "Roadmap draft — 3: Slice 28 — Tool Call Interception with Agent Guard Integration",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/drafts/roadmaps/3-slice-28-tool-call-interception-with-agent-guard.md",
+    "canonical_path": "planning/drafts/roadmaps/3-slice-28-tool-call-interception-with-agent-guard.md",
+    "first_paragraph": "**Domain:** engineering **Created:** 2026-09-20T17:08:39.048667+00:00 **Status:** draft",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Roadmap draft — 3: Slice 28 — Tool Call Interception with Agent Guard Integration"
+      },
+      {
+        "level": 2,
+        "title": "Scope"
+      },
+      {
+        "level": 2,
+        "title": "Guardrails"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 241
+  },
+  "planning/drafts/roadmaps/3-streaming-agent-guard-foundation.md": {
+    "path": "planning/drafts/roadmaps/3-streaming-agent-guard-foundation.md",
+    "title": "Roadmap draft — 3: STREAMING + AGENT GUARD FOUNDATION",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/drafts/roadmaps/3-streaming-agent-guard-foundation.md",
+    "canonical_path": "planning/drafts/roadmaps/3-streaming-agent-guard-foundation.md",
+    "first_paragraph": "**Domain:** engineering **Created:** 2026-09-20T17:09:15.510249+00:00 **Status:** draft",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Roadmap draft — 3: STREAMING + AGENT GUARD FOUNDATION"
+      },
+      {
+        "level": 2,
+        "title": "Scope"
+      },
+      {
+        "level": 2,
+        "title": "Guardrails"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 213
+  },
+  "planning/drafts/roadmaps/gateway-agent-guard-slice-28-tool-call-interceptio.md": {
+    "path": "planning/drafts/roadmaps/gateway-agent-guard-slice-28-tool-call-interceptio.md",
+    "title": "Roadmap draft — gateway-agent-guard: Slice 28: Tool Call Interception with Agent Guard Integration",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/drafts/roadmaps/gateway-agent-guard-slice-28-tool-call-interceptio.md",
+    "canonical_path": "planning/drafts/roadmaps/gateway-agent-guard-slice-28-tool-call-interceptio.md",
+    "first_paragraph": "**Domain:** gateway **Created:** 2026-09-17T18:01:56.996140+00:00 **Status:** draft",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Roadmap draft — gateway-agent-guard: Slice 28: Tool Call Interception with Agent Guard Integration"
+      },
+      {
+        "level": 2,
+        "title": "Scope"
+      },
+      {
+        "level": 2,
+        "title": "Guardrails"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 523
+  },
+  "planning/milestone-gateway-agent-guard.md": {
+    "path": "planning/milestone-gateway-agent-guard.md",
+    "title": "Milestone: MVP Gateway + Agent Guard Foundation",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/milestone-gateway-agent-guard.md",
+    "canonical_path": "planning/milestone-gateway-agent-guard.md",
+    "first_paragraph": "**Status:** IN_PROGRESS **Created:** 2026-09-16 **Goal:** OpenAI-compatible gateway з routing, streaming failover, та tool policy enforcement",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Milestone: MVP Gateway + Agent Guard Foundation"
+      },
+      {
+        "level": 2,
+        "title": "Completed Context"
+      },
+      {
+        "level": 2,
+        "title": "Current Architectural State"
+      },
+      {
+        "level": 2,
+        "title": "Next Bounded Work Unit"
+      },
+      {
+        "level": 2,
+        "title": "Dependencies"
+      },
+      {
+        "level": 2,
+        "title": "Key Architectural Constraints"
+      },
+      {
+        "level": 2,
+        "title": "Deferred Work"
+      }
+    ],
+    "must_lines": [
+      "1. **Tool calls must not bypass Agent Guard policy evaluation**",
+      "3. Gateway must NOT depend on Agent Guard (conceptual split preserved)"
+    ],
+    "char_count": 1797
+  },
+  "planning/slice-28-task.md": {
+    "path": "planning/slice-28-task.md",
+    "title": "Slice 28: Tool Call Interception with Agent Guard Integration",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/slice-28-task.md",
+    "canonical_path": "planning/slice-28-task.md",
+    "first_paragraph": "**Status:** OPEN **Parent Milestone:** milestone-gateway-agent-guard **Priority:** HIGH **Created:** 2026-09-16",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Slice 28: Tool Call Interception with Agent Guard Integration"
+      },
+      {
+        "level": 2,
+        "title": "Goal"
+      },
+      {
+        "level": 2,
+        "title": "Scope (Входить)"
+      },
+      {
+        "level": 2,
+        "title": "Non-Goals (НЕ Входить)"
+      },
+      {
+        "level": 2,
+        "title": "Dependencies"
+      },
+      {
+        "level": 2,
+        "title": "Acceptance Criteria"
+      },
+      {
+        "level": 2,
+        "title": "Evidence Sources"
+      },
+      {
+        "level": 2,
+        "title": "Certification Plan"
+      },
+      {
+        "level": 1,
+        "title": "Focused tests"
+      },
+      {
+        "level": 1,
+        "title": "Full suite"
+      },
+      {
+        "level": 1,
+        "title": "Expected: 326+ tests, 0 failed"
+      },
+      {
+        "level": 2,
+        "title": "Open Questions"
+      }
+    ],
+    "must_lines": [],
+    "char_count": 2305
+  },
+  "planning/slice-29-task.md": {
+    "path": "planning/slice-29-task.md",
+    "title": "Slice 29: Layer 3 Risk/Suspicion Evaluation Integration",
+    "status": "",
+    "layer": "other",
+    "source_class": "documentation",
+    "source_role": "docs_tree",
+    "package_scope": null,
+    "authored": "human",
+    "canonicality": 1.0,
+    "workspace_rel": "planning/slice-29-task.md",
+    "canonical_path": "planning/slice-29-task.md",
+    "first_paragraph": "**Status:** PROPOSED **Parent Milestone:** milestone-gateway-agent-guard **Priority:** HIGH **Created:** 2026-09-21 **Slice:** 29 (following Slice 28 completion)",
+    "toc": [
+      {
+        "level": 1,
+        "title": "Slice 29: Layer 3 Risk/Suspicion Evaluation Integration"
+      },
+      {
+        "level": 2,
+        "title": "Goal"
+      },
+      {
+        "level": 2,
+        "title": "Scope (In Scope)"
+      },
+      {
+        "level": 3,
+        "title": "Implementation"
+      },
+      {
+        "level": 2,
+        "title": "Non-Goals (Explicitly Deferred)"
+      },
+      {
+        "level": 2,
+        "title": "Architectural Constraints"
+      },
+      {
+        "level": 2,
+        "title": "Closed Decisions Referenced"
+      },
+      {
+        "level": 2,
+        "title": "Deferred Items (Preserved from ADRs)"
+      },
+      {
+        "level": 2,
+        "title": "Acceptance Criteria"
+      },
+      {
+        "level": 2,
+        "title": "Evidence Sources"
+      },
+      {
+        "level": 2,
+        "title": "Implementation Notes"
+      },
+      {
+        "level": 3,
+        "title": "Representation Choice"
+      },
+      {
+        "level": 3,
+        "title": "Pipeline Position"
+      },
+      {
+        "level": 2,
+        "title": "Certification Plan"
+      },
+      {
+        "level": 1,
+        "title": "Focused tests"
+      },
+      {
+        "level": 1,
+        "title": "Full suite"
+      },
+      {
+        "level": 1,
+        "title": "Expected: All existing tests pass + new Layer 3 tests"
+      }
+    ],
+    "must_lines": [
+      "Must comply with existing canonical decisions:",
+      "| Layer 3 finding MUST distinguish present/absent | `layer-3-evaluation-result-boundary.md` | DECIDED |",
+      "MUST NOT be presented as canonical long-term semantic contract"
+    ],
+    "char_count": 7333
   },
   "policy/correction-loop.md": {
     "path": "policy/correction-loop.md",

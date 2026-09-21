@@ -27,15 +27,18 @@ public sealed class AgentGuardService : IAgentGuard
     private readonly IActionIntentNormalizer _normalizer;
     private readonly ICapabilityTranslator _translator;
     private readonly IPolicyEvaluator _evaluator;
+    private readonly ILayer3Evaluator? _layer3Evaluator;
 
     public AgentGuardService(
         IActionIntentNormalizer normalizer,
         ICapabilityTranslator translator,
-        IPolicyEvaluator evaluator)
+        IPolicyEvaluator evaluator,
+        ILayer3Evaluator? layer3Evaluator = null)
     {
         _normalizer = normalizer ?? throw new ArgumentNullException(nameof(normalizer));
         _translator = translator ?? throw new ArgumentNullException(nameof(translator));
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
+        _layer3Evaluator = layer3Evaluator;
     }
 
     public AgentGuardResult Evaluate(AgentAction action)
@@ -72,12 +75,22 @@ public sealed class AgentGuardService : IAgentGuard
                 policyResult.FailureReason!.Reason);
         }
 
-        // Stage 4: Return successful enforcement outcome
+        // Stage 4: Layer 3 risk/suspicion evaluation (optional enrichment)
+        // Layer 3 evaluates for risk indicators but does NOT produce PolicyDecision.
+        // Orchestration interprets the finding and decides whether to escalate.
+        Layer3EvaluationResult? layer3Result = null;
+        if (_layer3Evaluator != null)
+        {
+            layer3Result = _layer3Evaluator.Evaluate(translateResult.Capability, translateResult.Metadata);
+        }
+
+        // Stage 5: Return successful enforcement outcome
         return AgentGuardResult.Success(
             policyResult.Decision,
             translateResult.Capability,
             translateResult.Target,
             translateResult.Metadata,
-            policyResult.Reason);
+            policyResult.Reason,
+            layer3Result);
     }
 }
