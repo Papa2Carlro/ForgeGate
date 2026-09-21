@@ -28,17 +28,20 @@ public sealed class AgentGuardService : IAgentGuard
     private readonly ICapabilityTranslator _translator;
     private readonly IPolicyEvaluator _evaluator;
     private readonly ILayer3Evaluator? _layer3Evaluator;
+    private readonly IAgentGuardEventEmitter _emitter;
 
     public AgentGuardService(
         IActionIntentNormalizer normalizer,
         ICapabilityTranslator translator,
         IPolicyEvaluator evaluator,
-        ILayer3Evaluator? layer3Evaluator = null)
+        ILayer3Evaluator? layer3Evaluator = null,
+        IAgentGuardEventEmitter? emitter = null)
     {
         _normalizer = normalizer ?? throw new ArgumentNullException(nameof(normalizer));
         _translator = translator ?? throw new ArgumentNullException(nameof(translator));
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _layer3Evaluator = layer3Evaluator;
+        _emitter = emitter ?? NullAgentGuardEventEmitter.Instance;
     }
 
     public AgentGuardResult Evaluate(AgentAction action)
@@ -46,13 +49,18 @@ public sealed class AgentGuardService : IAgentGuard
         if (action == null)
             throw new ArgumentNullException(nameof(action));
 
+        // Create observation with correlation ID for tracking
+        var observation = new AgentActionObservation { Source = action };
+
         // Stage 1: Normalize raw agent action to semantic intent
         var normalizeResult = _normalizer.Normalize(action);
         if (!normalizeResult.IsSuccess)
         {
-            return AgentGuardResult.NormalizationFailed(
+            var result = AgentGuardResult.NormalizationFailed(
                 normalizeResult.FailureReason!.RawAction,
                 "Failed to normalize agent action to semantic intent");
+            _emitter.Emit(AgentGuardEvent.FromFailure(result, observation));
+            return result;
         }
 
         var intent = normalizeResult.Intent!;
@@ -61,18 +69,22 @@ public sealed class AgentGuardService : IAgentGuard
         var translateResult = _translator.Translate(intent);
         if (!translateResult.IsSuccess)
         {
-            return AgentGuardResult.TranslationFailed(
+            var result = AgentGuardResult.TranslationFailed(
                 intent.Capability.ToString(),
                 translateResult.FailureReason!.Reason);
+            _emitter.Emit(AgentGuardEvent.FromFailure(result, observation));
+            return result;
         }
 
         // Stage 3: Evaluate translated capability against policy
         var policyResult = _evaluator.Evaluate(translateResult);
         if (!policyResult.IsSuccess)
         {
-            return AgentGuardResult.PolicyEvaluationFailed(
+            var result = AgentGuardResult.PolicyEvaluationFailed(
                 translateResult.Capability.ToString(),
                 policyResult.FailureReason!.Reason);
+            _emitter.Emit(AgentGuardEvent.FromFailure(result, observation));
+            return result;
         }
 
         // Stage 4: Layer 3 risk/suspicion evaluation (optional enrichment)
@@ -84,13 +96,15 @@ public sealed class AgentGuardService : IAgentGuard
             layer3Result = _layer3Evaluator.Evaluate(translateResult.Capability, translateResult.Metadata);
         }
 
-        // Stage 5: Return successful enforcement outcome
-        return AgentGuardResult.Success(
+        // Stage 5: Return successful enforcement outcome and emit event
+        var successResult = AgentGuardResult.Success(
             policyResult.Decision,
             translateResult.Capability,
             translateResult.Target,
             translateResult.Metadata,
             policyResult.Reason,
             layer3Result);
+        _emitter.Emit(AgentGuardEvent.FromSuccess(successResult, observation));
+        return successResult;
     }
 }
