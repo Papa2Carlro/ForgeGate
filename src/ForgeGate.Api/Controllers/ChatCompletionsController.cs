@@ -4,6 +4,7 @@ using ForgeGate.Application.Chat.Execution;
 using ForgeGate.Application.Chat.Routing.Resolution;
 using ForgeGate.Application.Chat.Streaming;
 using ForgeGate.Domain.Providers;
+using ForgeGate.Domain.AgentGuard;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ForgeGate.Api.Controllers;
@@ -120,8 +121,8 @@ public sealed class ChatCompletionsController : ControllerBase
             {
                 var failure = outcome.FailureValue!;
                 int statusCode = MapFailureToStatusCode(failure);
-                string errorType = MapFailureToErrorType(failure.Category);
-                string errorCode = MapFailureToErrorCode(failure.Category);
+                string errorType = MapFailureToErrorType(failure.Category, failure.PolicyDecision);
+                string errorCode = MapFailureToErrorCode(failure.Category, failure.PolicyDecision);
 
                 return StatusCode(statusCode, new OpenAIErrorResponse
                 {
@@ -400,12 +401,17 @@ public sealed class ChatCompletionsController : ControllerBase
                 return StatusCodes.Status502BadGateway;
             case ProviderFailureCategory.MalformedResponse:
                 return StatusCodes.Status502BadGateway;
+            case ProviderFailureCategory.AgentGuardDenied:
+                // RequireHumanApproval gets 409, all other Agent Guard outcomes get 403
+                if (failure.PolicyDecision == PolicyDecision.RequireHumanApproval)
+                    return StatusCodes.Status409Conflict;
+                return StatusCodes.Status403Forbidden;
             default:
                 return StatusCodes.Status502BadGateway;
         }
     }
 
-    private static string MapFailureToErrorType(ProviderFailureCategory category)
+    private static string MapFailureToErrorType(ProviderFailureCategory category, PolicyDecision? policyDecision = null)
     {
         return category switch
         {
@@ -420,11 +426,14 @@ public sealed class ChatCompletionsController : ControllerBase
             ProviderFailureCategory.ProviderUnavailable => "api_error",
             ProviderFailureCategory.NetworkFailure => "api_error",
             ProviderFailureCategory.MalformedResponse => "api_error",
+            ProviderFailureCategory.AgentGuardDenied => policyDecision == PolicyDecision.RequireHumanApproval
+                ? "agent_guard_requires_human_approval"
+                : "agent_guard_denied",
             _ => "api_error"
         };
     }
 
-    private static string MapFailureToErrorCode(ProviderFailureCategory category)
+    private static string MapFailureToErrorCode(ProviderFailureCategory category, PolicyDecision? policyDecision = null)
     {
         return category switch
         {
@@ -439,6 +448,9 @@ public sealed class ChatCompletionsController : ControllerBase
             ProviderFailureCategory.ProviderUnavailable => "provider_unavailable",
             ProviderFailureCategory.NetworkFailure => "network_failure",
             ProviderFailureCategory.MalformedResponse => "malformed_response",
+            ProviderFailureCategory.AgentGuardDenied => policyDecision == PolicyDecision.RequireHumanApproval
+                ? "agent_guard_requires_human_approval"
+                : "agent_guard_denied",
             _ => "unknown_error"
         };
     }
