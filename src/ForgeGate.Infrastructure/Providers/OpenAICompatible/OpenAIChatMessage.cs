@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace ForgeGate.Infrastructure.Providers.OpenAICompatible;
 
 /// <summary>
@@ -6,6 +8,8 @@ namespace ForgeGate.Infrastructure.Providers.OpenAICompatible;
 /// </summary>
 public sealed record OpenAIChatMessage
 {
+    [JsonPropertyName("role")]
     public required string Role { get; init; }
+    [JsonPropertyName("content")]
     public required string Content { get; init; }
 }

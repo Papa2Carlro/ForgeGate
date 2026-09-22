@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace ForgeGate.Api.Controllers;
 
 /// <summary>
@@ -6,6 +8,7 @@ namespace ForgeGate.Api.Controllers;
 public sealed class OpenAIChatCompletionResponse
 {
     public required string Id { get; init; }
+    [JsonPropertyName("object")]
     public required string Object { get; init; }
     public required long Created { get; init; }
     public required string Model { get; init; }
@@ -17,11 +20,13 @@ public sealed class OpenAIChatCompletionChoice
 {
     public required int Index { get; init; }
     public required OpenAIChatMessage Message { get; init; }
+    [JsonPropertyName("finish_reason")]
     public required string FinishReason { get; init; }
-    
+
     /// <summary>
     /// Tool calls requested by the model. Present when FinishReason is "tool_calls".
     /// </summary>
+    [JsonPropertyName("tool_calls")]
     public List<OpenAIChatCompletionToolCall>? ToolCalls { get; init; }
 }
 

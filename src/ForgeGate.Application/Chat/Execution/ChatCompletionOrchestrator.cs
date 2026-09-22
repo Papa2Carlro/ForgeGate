@@ -163,7 +163,7 @@ public sealed class ChatCompletionOrchestrator : IChatCompletionOrchestrator
             var action = new AgentAction
             {
                 Source = "tool_call",
-                RawAction = $"{toolCall.Name}({toolCall.Arguments})",
+                RawAction = $"{toolCall.Name} {toolCall.Arguments ?? string.Empty}".Trim(),
                 Payload = toolCall.Arguments
             };
 

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace ForgeGate.Infrastructure.Providers.OpenAICompatible;
 
 /// <summary>
@@ -6,9 +8,11 @@ namespace ForgeGate.Infrastructure.Providers.OpenAICompatible;
 /// </summary>
 public sealed record OpenAIChatCompletionRequest
 {
+    [JsonPropertyName("model")]
     public required string Model { get; init; }
+    [JsonPropertyName("messages")]
     public required IReadOnlyList<OpenAIChatMessage> Messages { get; init; }
-    
+
     // Optional parameters that might be needed by the existing code path
     public double? Temperature { get; init; }
     public int? MaxTokens { get; init; }
