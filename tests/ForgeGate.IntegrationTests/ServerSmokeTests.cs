@@ -531,6 +531,151 @@ public class ServerSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal("agent_guard_requires_human_approval", error.GetProperty("code").GetString());
         Assert.Contains("requires human approval", error.GetProperty("message").GetString());
     }
+
+    /// <summary>
+    /// Proves that when the real OpenAIChatCompletionProvider returns a retryable error (503),
+    /// the orchestrator attempts failover, exhausts available routes, and returns HTTP 502
+    /// with the routing exhaustion error contract.
+    /// </summary>
+    [Fact]
+    public async Task PostChatCompletions_WithRetryableProviderFailure_Returns502AfterFailoverExhaustion()
+    {
+        // Arrange - use the REAL OpenAIChatCompletionProvider but make its
+        // outbound HttpClient return 503 Service Unavailable (maps to ProviderUnavailable)
+        HttpRequestMessage? capturedRequest = null;
+        var testHandler = new TestHttpMessageHandler(
+            (request) => capturedRequest = request,
+            () => new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                Content = new StringContent("{\"error\":{\"message\":\"Service Unavailable\",\"type\":\"api_error\",\"code\":\"service_unavailable\"}}")
+                {
+                    Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
+                }
+            });
+
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                // Replace streaming provider only (keep real chat provider)
+                var streamingDescriptor = services.FirstOrDefault(
+                    d => d.ServiceType == typeof(IStreamingChatCompletionProvider));
+                if (streamingDescriptor != null)
+                    services.Remove(streamingDescriptor);
+                services.AddScoped<IStreamingChatCompletionProvider>(_ => new FakeStreamingChatCompletionProvider());
+
+                // Replace the real OpenAI provider with a real instance using test HttpClient
+                var providerDescriptor = services.FirstOrDefault(
+                    d => d.ServiceType == typeof(IChatCompletionProvider));
+                if (providerDescriptor != null)
+                    services.Remove(providerDescriptor);
+
+                // Remove default HttpClient registrations
+                var httpClientDescriptors = services.Where(d => d.ServiceType == typeof(HttpClient)).ToList();
+                foreach (var desc in httpClientDescriptors)
+                    services.Remove(desc);
+
+                // Register typed HttpClient for OpenAIChatCompletionProvider with test handler
+                services.AddHttpClient<OpenAIChatCompletionProvider>(client =>
+                {
+                    client.BaseAddress = new Uri("http://test/");
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => testHandler);
+
+                // Add real provider with test HttpClient and test configuration
+                services.AddScoped<IChatCompletionProvider>(sp =>
+                {
+                    var httpClient = sp.GetRequiredService<IHttpClientFactory>()
+                        .CreateClient(typeof(OpenAIChatCompletionProvider).Name);
+                    var memoryConfig = new Dictionary<string, string?>
+                    {
+                        ["OpenAI:Endpoint"] = "http://test/chat/completions"
+                    };
+                    var configurationBuilder = new ConfigurationBuilder();
+                    configurationBuilder.AddInMemoryCollection(memoryConfig);
+                    var testConfig = configurationBuilder.Build();
+                    return new OpenAIChatCompletionProvider(httpClient, testConfig);
+                });
+
+                // Register NullAgentGuardEventEmitter (missing from Program.cs DI)
+                services.AddSingleton<IAgentGuardEventEmitter>(NullAgentGuardEventEmitter.Instance);
+
+                // Override routing configuration
+                var currentConfig = services.FirstOrDefault(d => d.ServiceType == typeof(IConfigureOptions<RoutingConfiguration>));
+                if (currentConfig != null)
+                    services.Remove(currentConfig);
+
+                services.AddOptions<RoutingConfiguration>()
+                    .Configure<IConfiguration>((config, configuration) =>
+                    {
+                        config.Routes = new List<ConfiguredRoute>
+                        {
+                            new ConfiguredRoute
+                            {
+                                RequestedModelAlias = "gpt-4",
+                                ModelRoute = ModelRoute.FromIdsWithOptions(
+                                    ProviderId.From("openai"),
+                                    LogicalModelId.From("gpt-4"),
+                                    ModelRouteId.From("openai:gpt-4"),
+                                    providerNativeModelId: "gpt-4",
+                                    enabled: true,
+                                    capabilities: ModelCapability.None),
+                                Enabled = true
+                            }
+                        };
+                    });
+            });
+        }).CreateClient();
+
+        // Act - send HTTP request; provider will receive 502 response
+        var requestBody = """
+            {
+                "model": "gpt-4",
+                "messages": [{"role": "user", "content": "Hello"}]
+            }
+            """;
+
+        using var response = await client.PostAsync(
+            "/v1/chat/completions",
+            new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json"));
+
+        // Always read body to capture server error details for debugging
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        // Debug: print response for troubleshooting
+        if (!response.IsSuccessStatusCode)
+        {
+            System.Console.WriteLine($"[DEBUG] Server returned {response.StatusCode}");
+            System.Console.WriteLine($"[DEBUG] Body: {responseBody}");
+            System.Console.WriteLine($"[DEBUG] Captured request URI: {capturedRequest?.RequestUri}");
+            if (capturedRequest?.Content != null)
+            {
+                var reqBody = await capturedRequest.Content.ReadAsStringAsync();
+                System.Console.WriteLine($"[DEBUG] Outbound request body: {reqBody}");
+            }
+        }
+
+        // Assert - verify the failover exhaustion contract
+        // Provider returns 503 → OpenAIProviderFailureMapper maps to ProviderUnavailable (RetryViaAnotherRoute)
+        // → Orchestrator attempts failover, excludes the only route
+        // → ConfiguredRouteResolver returns NoEligibleRoute
+        // → ChatCompletionOutcome.FailWithResolutionError creates UnknownProviderFailure
+        // → Controller maps UnknownProviderFailure via default case to 502
+        Assert.Equal(System.Net.HttpStatusCode.BadGateway, response.StatusCode);
+        var json = System.Text.Json.JsonDocument.Parse(responseBody);
+
+        // Verify exact error contract for route exhaustion after failover
+        var error = json.RootElement.GetProperty("error");
+        var errorType = error.GetProperty("type").GetString();
+        var errorCode = error.GetProperty("code").GetString();
+        var errorMessage = error.GetProperty("message").GetString();
+
+        Assert.Equal("api_error", errorType);
+        Assert.Equal("unknown_error", errorCode);
+        Assert.NotNull(errorMessage);
+        Assert.NotEmpty(errorMessage);
+        Assert.Contains("No eligible route", errorMessage);
+    }
 }
 
 /// <summary>
@@ -550,6 +695,25 @@ internal sealed class ApprovingAgentGuard : IAgentGuard
     public AgentGuardResult Evaluate(AgentAction action) =>
         AgentGuardResult.Success(PolicyDecision.RequireHumanApproval, ActionIntentKind.FileDelete, action.RawAction);
 }
+
+/// <summary>
+/// Test double: returns 502 Bad Gateway to simulate provider transport failure.
+/// </summary>
+internal sealed class FailingTestHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.BadGateway)
+        {
+            RequestMessage = request,
+            Content = new StringContent("{\"error\":{\"message\":\"Bad Gateway\",\"type\":\"api_error\",\"code\":\"provider_unavailable\"}}")
+        };
+        response.Content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+        return Task.FromResult(response);
+    }
+}
+
 internal sealed class TestHttpMessageHandler : HttpMessageHandler
 {
     private readonly Action<HttpRequestMessage> _onRequest;
