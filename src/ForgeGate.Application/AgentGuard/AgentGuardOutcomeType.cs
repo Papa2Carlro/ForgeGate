@@ -27,4 +27,10 @@ public enum AgentGuardOutcomeType
     /// Pipeline failed at policy evaluation stage.
     /// </summary>
     PolicyEvaluationFailed,
+
+    /// <summary>
+    /// Action decision made under degraded supervision condition.
+    /// Audit observation only — does not affect PolicyDecision.
+    /// </summary>
+    DegradedSupervision,
 }

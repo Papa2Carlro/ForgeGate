@@ -27,6 +27,8 @@ public sealed record AgentGuardEvent
     public Layer3EvaluationResult? Layer3Result { get; init; }
     public string? FailureStage { get; init; }
     public string? FailureReason { get; init; }
+    public string? DegradedCondition { get; init; }
+    public string? DegradationReason { get; init; }
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
     /// <summary>
@@ -68,6 +70,36 @@ public sealed record AgentGuardEvent
             Layer3Result = null,
             FailureStage = result.FailureStage,
             FailureReason = result.FailureReason,
+            DegradedCondition = null,
+            DegradationReason = null,
+            CreatedAt = DateTime.UtcNow
+        };
+
+    /// <summary>
+    /// Creates a degraded supervision audit event.
+    /// Records that a policy decision was made while supervision was degraded.
+    /// </summary>
+    public static AgentGuardEvent FromDegradedSupervision(
+        PolicyDecision decision,
+        ActionIntentKind capability,
+        string target,
+        string degradedCondition,
+        string? degradationReason = null,
+        Layer3EvaluationResult? layer3Result = null,
+        AgentActionObservation? observation = null) =>
+        new()
+        {
+            Observation = observation ?? new(),
+            OutcomeType = AgentGuardOutcomeType.DegradedSupervision,
+            Decision = decision,
+            Capability = capability,
+            Target = target,
+            Metadata = null,
+            Layer3Result = layer3Result,
+            FailureStage = null,
+            FailureReason = null,
+            DegradedCondition = degradedCondition,
+            DegradationReason = degradationReason,
             CreatedAt = DateTime.UtcNow
         };
 }
