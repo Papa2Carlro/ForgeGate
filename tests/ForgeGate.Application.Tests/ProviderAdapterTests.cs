@@ -68,6 +68,138 @@ public class ProviderAdapterTests
         Assert.Equal(ProviderFailureCategory.InvalidRequest, outcome.FailureValue!.Category);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_SendsAuthorizationHeader_WhenApiKeyConfigured()
+    {
+        // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "gpt-4",
+            Messages = new List<CanonicalChatMessage>
+            {
+                new() { Role = "user", Content = "Hello" }
+            }
+        };
+
+        string? capturedAuthHeader = null;
+        var handler = new CapturingHttpMessageHandler(r =>
+        {
+            capturedAuthHeader = r.Headers.Authorization?.ToString();
+            var content = new StringContent("{\"id\":\"test\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Hi\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}");
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content
+            };
+        });
+        var httpClient = new HttpClient(handler);
+        var config = new FullConfiguration(new Dictionary<string, string>
+        {
+            ["OpenAI:Endpoint"] = "https://api.openai.com/v1/chat/completions",
+            ["OpenAI:ApiKey"] = "sk-test-key-123"
+        });
+        var provider = new OpenAIChatCompletionProvider(httpClient, config);
+
+        // When
+        var outcome = await provider.ExecuteAsync(route, request, CancellationToken.None);
+
+        // Then
+        Assert.True(outcome.IsSuccess);
+        Assert.Equal("Bearer sk-test-key-123", capturedAuthHeader);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_NoAuthorizationHeader_WhenApiKeyEmpty()
+    {
+        // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "gpt-4",
+            Messages = new List<CanonicalChatMessage>
+            {
+                new() { Role = "user", Content = "Hello" }
+            }
+        };
+
+        string? capturedAuthHeader = null;
+        var handler = new CapturingHttpMessageHandler(r =>
+        {
+            capturedAuthHeader = r.Headers.Authorization?.ToString();
+            var content = new StringContent("{\"id\":\"test\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Hi\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}");
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content
+            };
+        });
+        var httpClient = new HttpClient(handler);
+        var config = new FullConfiguration(new Dictionary<string, string>
+        {
+            ["OpenAI:Endpoint"] = "https://api.openai.com/v1/chat/completions"
+        });
+        var provider = new OpenAIChatCompletionProvider(httpClient, config);
+
+        // When
+        var outcome = await provider.ExecuteAsync(route, request, CancellationToken.None);
+
+        // Then
+        Assert.True(outcome.IsSuccess);
+        Assert.Null(capturedAuthHeader);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ApiKeyNotLogged_WhenRequestFails()
+    {
+        // Given
+        var route = ModelRoute.FromIds(
+            ProviderId.From("openai"),
+            LogicalModelId.From("gpt-4"),
+            ModelRouteId.From("openai:gpt-4")
+        );
+        var request = new CanonicalChatRequest
+        {
+            RequestedModel = "gpt-4",
+            Messages = new List<CanonicalChatMessage>
+            {
+                new() { Role = "user", Content = "Hello" }
+            }
+        };
+
+        string? capturedAuthHeader = null;
+        var handler = new CapturingHttpMessageHandler(r =>
+        {
+            capturedAuthHeader = r.Headers.Authorization?.ToString();
+            throw new HttpRequestException("Connection refused");
+        });
+        var httpClient = new HttpClient(handler);
+        var config = new FullConfiguration(new Dictionary<string, string>
+        {
+            ["OpenAI:Endpoint"] = "https://api.openai.com/v1/chat/completions",
+            ["OpenAI:ApiKey"] = "sk-secret-key-456"
+        });
+        var provider = new OpenAIChatCompletionProvider(httpClient, config);
+
+        // When
+        var outcome = await provider.ExecuteAsync(route, request, CancellationToken.None);
+
+        // Then
+        Assert.False(outcome.IsSuccess);
+        Assert.Equal(ProviderFailureCategory.NetworkFailure, outcome.FailureValue!.Category);
+        // Verify the header was sent but the secret value is not exposed in the failure message
+        Assert.Equal("Bearer sk-secret-key-456", capturedAuthHeader);
+        Assert.DoesNotContain("sk-secret-key-456", outcome.FailureValue.SanitizedUpstreamMessage ?? string.Empty);
+    }
+
     private sealed class FakeOpenAIChatCompletionProvider : IChatCompletionProvider
     {
         public Task<ProviderExecutionOutcome> ExecuteAsync(ModelRoute route, CanonicalChatRequest request, CancellationToken cancellationToken)
@@ -313,8 +445,58 @@ public class ProviderAdapterTests
         IConfigurationSection IConfiguration.GetSection(string key)
             => throw new NotSupportedException();
     }
-}
 
+    private sealed class FullConfiguration : IConfiguration
+    {
+        private readonly Dictionary<string, string> _values;
+
+        public FullConfiguration(Dictionary<string, string> values)
+        {
+            _values = values;
+        }
+
+        string? IConfiguration.this[string key]
+        {
+            get => _values.TryGetValue(key, out var value) ? value : null;
+            set => throw new NotSupportedException();
+        }
+
+        IEnumerable<IConfigurationSection> IConfiguration.GetChildren()
+            => _values.Keys
+                .Where(k => k.Contains(":"))
+                .Select(k => new ConfigurationSection(_values, k));
+
+        Microsoft.Extensions.Primitives.IChangeToken IConfiguration.GetReloadToken()
+            => throw new NotSupportedException();
+
+        IConfigurationSection IConfiguration.GetSection(string key)
+            => new ConfigurationSection(_values, key);
+
+        private sealed class ConfigurationSection : IConfigurationSection
+        {
+            private readonly Dictionary<string, string> _values;
+            private readonly string _key;
+
+            public ConfigurationSection(Dictionary<string, string> values, string key)
+            {
+                _values = values;
+                _key = key;
+            }
+
+            public string Key => _key;
+            public string Path => _key;
+            public string? Value { get => _values.TryGetValue(_key, out var v) ? v : null; set => _values[_key] = value!; }
+            public IEnumerable<IConfigurationSection> GetChildren() => Enumerable.Empty<IConfigurationSection>();
+            public IChangeToken GetReloadToken() => throw new NotSupportedException();
+            public IConfigurationSection GetSection(string key) => new ConfigurationSection(_values, $"{_key}:{key}");
+            string? IConfiguration.this[string key]
+            {
+                get => GetSection(key).Value;
+                set => GetSection(key).Value = value;
+            }
+        }
+    }
+}
 // Simple mock HTTP handler for testing
     class MockHttpMessageHandler : HttpMessageHandler
     {
@@ -334,5 +516,17 @@ public class ProviderAdapterTests
                 StatusCode = _statusCode,
                 Content = new StringContent(_content)
             });
+        }
+    }
+    class CapturingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _handler;
+        public CapturingHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            _handler = handler;
+        }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_handler(request));
         }
     }

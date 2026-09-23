@@ -12,13 +12,13 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
 {
     private readonly HttpClient _httpClient;
     private readonly string _endpoint;
+    private readonly string _apiKey;
 
     public OpenAIChatCompletionProvider(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        // In a real implementation, this would come from configuration/secrets
-        // For this slice, we'll use a default that can be overridden
         _endpoint = configuration["OpenAI:Endpoint"] ?? "https://api.openai.com/v1/chat/completions";
+        _apiKey = configuration["OpenAI:ApiKey"]?.Trim() ?? string.Empty;
     }
 
     /// <summary>
@@ -168,12 +168,7 @@ public sealed class OpenAIChatCompletionProvider : IChatCompletionProvider
         };
     }
 
-    private string GetApiKeyFromConfiguration()
-    {
-        // In a real implementation, this would come from secure configuration/secrets
-        // For this slice, we'll attempt to read from configuration but allow empty for keyless providers
-        return ""; // Placeholder - would normally come from IConfiguration
-    }
+    private string GetApiKeyFromConfiguration() => _apiKey;
 
     /// <summary>
     /// Exposed for testing - maps provider response to canonical response.

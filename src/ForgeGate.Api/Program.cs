@@ -8,6 +8,7 @@ using ForgeGate.Application.Chat.Streaming;
 using ForgeGate.Application.AgentGuard;
 using ForgeGate.Domain.AgentGuard;
 using ForgeGate.Infrastructure.Providers.OpenAICompatible;
+using ForgeGate.Infrastructure.Providers.XKiro;
 using ForgeGate.Infrastructure.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -21,12 +22,14 @@ builder.Services.AddSwaggerGen();
 
 // Add HTTP client for provider
 builder.Services.AddHttpClient<OpenAIChatCompletionProvider>();
+builder.Services.AddHttpClient<XKiroChatCompletionProvider>();
 
 // Configure routing
 builder.Services.Configure<RoutingConfiguration>(builder.Configuration.GetSection("Routing"));
 
 // Add Application services
 builder.Services.AddScoped<IChatCompletionProvider, OpenAIChatCompletionProvider>();
+builder.Services.AddScoped<XKiroChatCompletionProvider>();
 builder.Services.AddSingleton<IRouteHealthStateProvider, InMemoryRouteHealthStateProvider>();
 builder.Services.AddScoped<IRouteHealthFeedback, RouteHealthFeedback>();
 builder.Services.AddScoped<IRouteEligibilityEvaluator, RouteOperationalEligibilityEvaluator>(sp =>

@@ -59,7 +59,7 @@ public sealed class ConfiguredRouteResolver : IRouteResolver
             return RouteResolutionOutcome.Failure(RouteResolutionFailure.NoConfiguredRoute());
 
         var candidates = _configuration.Routes
-            .Where(r => string.Equals(r.RequestedModelAlias, request.RequestedModel, StringComparison.OrdinalIgnoreCase))
+            .Where(r => string.Equals(r.ModelRoute.LogicalModelId.Value, request.RequestedModel, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         if (!candidates.Any())

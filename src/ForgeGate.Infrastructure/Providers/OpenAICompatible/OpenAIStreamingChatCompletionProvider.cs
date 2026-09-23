@@ -13,12 +13,14 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
 {
     private readonly HttpClient _httpClient;
     private readonly string _endpoint;
+    private readonly string _apiKey;
     private readonly StreamingToolCallAccumulator _toolCallAccumulator = new();
 
     public OpenAIStreamingChatCompletionProvider(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _endpoint = configuration["OpenAI:Endpoint"] ?? "https://api.openai.com/v1/chat/completions";
+        _apiKey = configuration["OpenAI:ApiKey"]?.Trim() ?? string.Empty;
     }
 
     public async Task<StreamingExecutionOutcome> ExecuteStreamingAsync(
@@ -207,7 +209,7 @@ public sealed class OpenAIStreamingChatCompletionProvider : IStreamingChatComple
         };
     }
 
-    private string GetApiKeyFromConfiguration() => "";
+    private string GetApiKeyFromConfiguration() => _apiKey;
 }
 
 // Infrastructure-level DTOs - must not leak to Application
